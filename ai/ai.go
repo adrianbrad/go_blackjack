@@ -4,7 +4,6 @@ import (
 	"blackjack/game"
 	"blackjack/hand"
 	"deck"
-	"fmt"
 )
 
 type AI interface {
@@ -16,8 +15,6 @@ type HumanAI struct {
 }
 
 func (ai *HumanAI) Play(playerHand hand.Hand, dealerVisibleCard deck.Card) Decision { //[]hand.Hand - a slice of hand.Hand(which is also a slice) - in case of splitting user will have multiple hands
-	fmt.Println(playerHand)
-	fmt.Println(dealerVisibleCard)
 	return func(i game.Game) game.Game {
 		return game.Game{}
 	}

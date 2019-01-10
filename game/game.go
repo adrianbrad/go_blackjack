@@ -66,7 +66,10 @@ func (game *Game) DealStartingHands() { //FIXME bullshit
 
 func (game *Game) FinishDealerHand() {
 	decision := game.Dealer.TakeDecision(game.DealerHand)
-	decision(game)
+
+	//FINISH DEALER HAND
+	for decision == (*Game).Stand
+		decision(game)
 }
 
 func (game *Game) EndHand() {
