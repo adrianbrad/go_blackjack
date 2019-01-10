@@ -1,0 +1,5 @@
+to be added:
+    game stages:
+        start round - generate and shuffle decks
+        player turn - let the player decide what he wants to do
+        dealer turn - check if the dealer has to draw
