@@ -1,15 +1,22 @@
 package hand
 
-import "deck"
+import (
+	"deck"
+)
 
 type Hand []deck.Card
 
-func (hand Hand) minScore() int {
+func (hand Hand) MinScore() ([]int, int) {
 	score := 0
+	var individualValues []int
+
 	for _, card := range hand {
-		score += min(int(card.Rank), 10)
+		cardValue := min(int(card.Rank), 10)
+		score += cardValue
+
+		individualValues = append(individualValues, cardValue)
 	}
-	return score
+	return individualValues, score
 }
 
 func min(number, max int) int {
@@ -19,27 +26,33 @@ func min(number, max int) int {
 	return max
 }
 
-func (hand Hand) Score() int {
+func (hand Hand) Score() ([]int, int) {
 
 	//ace is counted as a one if the score is higher than 11
-	minScore := hand.minScore()
+	individualValues, minScore := hand.MinScore()
 	if minScore > 11 {
-		return minScore
+		return individualValues, minScore
 	}
 
 	//ace is counted as 11 if the score is lower than 11
-	for _, card := range hand {
+	for index, card := range hand {
 		if card.Rank == deck.Ace {
-
+			individualValues[index] += 10
 			//adding ten as we already have a +1 if an ace is in the hand
-			return minScore + 10
+			return individualValues, minScore + 10
 		}
 	}
 
 	//if no ace is in the hand
-	return minScore
+	return individualValues, minScore
 }
 
-func DealCard(deck *deck.Deck, hand *Hand) {
-	*hand, *deck = append(*hand, (*deck)[0]), (*deck)[1:]
+func (hand Hand) Soft() bool {
+	_, minScore := hand.MinScore()
+	_, score := hand.Score()
+	return minScore != score
 }
+
+//func DrawCard(deck *deck.Deck, hand *Hand) {
+//	*hand = append(*hand, deck.DealCard())
+//}

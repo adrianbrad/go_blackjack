@@ -19,9 +19,11 @@ type Game struct {
 	State      GameSessionState //change to custom type
 	PlayerHand hand.Hand
 	DealerHand hand.Hand
+
+	Dealer Dealer
 }
 
-func (game *Game) CurrentPlayerHand() *hand.Hand {
+func (game *Game) GetCurrentPlayerHand() *hand.Hand {
 	switch game.State {
 	case StatePlayerTurn:
 		return &game.PlayerHand
@@ -37,7 +39,7 @@ func (game *Game) ShuffleNewDeck() {
 }
 
 func (game *Game) Hit() {
-	hand.DealCard(&game.Deck, game.CurrentPlayerHand())
+	*game.GetCurrentPlayerHand() = append(*game.GetCurrentPlayerHand(), game.Deck.DealCard())
 }
 
 func (game *Game) Stand() {
@@ -49,19 +51,22 @@ func (game *Game) Stand() {
 	}
 }
 
-func (game *Game) DealStartingHands() {
-	hand.DealCard(&game.Deck, &game.PlayerHand)
-	hand.DealCard(&game.Deck, &game.DealerHand)
-	hand.DealCard(&game.Deck, &game.PlayerHand)
-	hand.DealCard(&game.Deck, &game.DealerHand)
+func (game *Game) DealStartingHands() { //FIXME bullshit
+	game.State = StatePlayerTurn
+	game.Hit()
+	game.State = StateDealerTurn
+	game.Hit()
+	game.State = StatePlayerTurn
+	game.Hit()
+	game.State = StateDealerTurn
+	game.Hit()
+
 	game.State = StatePlayerTurn
 }
 
 func (game *Game) FinishDealerHand() {
-	for game.DealerHand.Score() <= 16 || (game.DealerHand.Score() == 17 && game.DealerHand.Score() != 17) { //(hand.Score() == 17 && hand.MinScore() != 17) - this means it has an ace, and it's a soft 17
-		hand.DealCard(&game.Deck, &game.DealerHand)
-	}
-	game.Stand() //StateDealerHand -> StateHandOver
+	decision := game.Dealer.TakeDecision(game.DealerHand)
+	decision(game)
 }
 
 func (game *Game) EndHand() {
@@ -85,8 +90,8 @@ type BlackjackOutcome struct {
 }
 
 func computeOutcome(playerHand hand.Hand, dealerHand hand.Hand) BlackjackOutcome {
-	playerScore := playerHand.Score()
-	dealerScore := dealerHand.Score()
+	_, playerScore := playerHand.Score()
+	_, dealerScore := dealerHand.Score()
 	switch {
 	case playerScore > 21: //if player busts nothing else matters
 		return BlackjackOutcome{dealer, true}
@@ -98,6 +103,7 @@ func computeOutcome(playerHand hand.Hand, dealerHand hand.Hand) BlackjackOutcome
 		return BlackjackOutcome{dealer, false}
 	case playerScore == dealerScore:
 		return BlackjackOutcome{draw, false}
+	default:
+		panic("Something's wrong with the outcome")
 	}
-	return BlackjackOutcome{draw, false}
 }
