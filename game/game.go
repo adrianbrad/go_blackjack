@@ -4,6 +4,7 @@ import (
 	"blackjack/hand"
 	"deck"
 	"fmt"
+	"reflect"
 )
 
 type GameSessionState uint8
@@ -67,9 +68,11 @@ func (game *Game) DealStartingHands() { //FIXME bullshit
 func (game *Game) FinishDealerHand() {
 	decision := game.Dealer.TakeDecision(game.DealerHand)
 
-	//FINISH DEALER HAND
-	for decision == (*Game).Stand
+	for reflect.ValueOf(decision).Pointer() == reflect.ValueOf((*Game).Hit).Pointer() { //while the dealer decides to hit
 		decision(game)
+		decision = game.Dealer.TakeDecision(game.DealerHand)
+	}
+	decision(game) //the dealer stands here
 }
 
 func (game *Game) EndHand() {
