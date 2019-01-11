@@ -10,18 +10,36 @@ import (
 type GameSessionState uint8
 
 const (
-	StatePlayerTurn GameSessionState = iota
+	StateBet GameSessionState = iota
+	StatePlayerTurn
 	StateDealerTurn
 	StateHandOver
 )
 
 type Game struct {
-	Deck       deck.Deck
-	State      GameSessionState //change to custom type
-	PlayerHand hand.Hand
-	DealerHand hand.Hand
+	NumDecks        int
+	BlackjackPayout float64
 
-	Dealer Dealer
+	Deck  deck.Deck
+	State GameSessionState //change to custom type
+
+	PlayerHand    hand.Hand
+	PlayerBet     int
+	PlayerBalance int
+
+	DealerHand hand.Hand
+	Dealer     Dealer
+}
+
+func (game *Game) Bet(bet int) {
+	game.PlayerBalance -= bet
+	game.PlayerBet = bet
+}
+
+func (game *Game) DoubleDown() { //TODO: handle len(game.PlayerHand) > 2
+	game.PlayerBet *= 2
+	game.Hit()
+	game.Stand()
 }
 
 func (game *Game) GetCurrentPlayerHand() *hand.Hand {
@@ -36,7 +54,7 @@ func (game *Game) GetCurrentPlayerHand() *hand.Hand {
 }
 
 func (game *Game) ShuffleNewDeck() {
-	game.Deck = deck.New(deck.Amount(3), deck.Shuffle)
+	game.Deck = deck.New(deck.Amount(game.NumDecks), deck.Shuffle)
 }
 
 func (game *Game) Hit() {
@@ -53,14 +71,14 @@ func (game *Game) Stand() {
 }
 
 func (game *Game) DealStartingHands() { //FIXME bullshit
-	game.State = StatePlayerTurn
-	game.Hit()
-	game.State = StateDealerTurn
-	game.Hit()
-	game.State = StatePlayerTurn
-	game.Hit()
-	game.State = StateDealerTurn
-	game.Hit()
+	for i := 0; i < 2; i++ {
+		game.State = StatePlayerTurn
+		game.Hit()
+		game.State = StateDealerTurn
+		game.Hit()
+	}
+	//game.PlayerHand = hand.Hand{{deck.Clubs,deck.Six}, {deck.Clubs, deck.Five}, {deck.Clubs, deck.Ten}}
+	//game.DealerHand = hand.Hand{{deck.Clubs,deck.Ace}, {deck.Clubs, deck.King}}
 
 	game.State = StatePlayerTurn
 }
@@ -68,19 +86,70 @@ func (game *Game) DealStartingHands() { //FIXME bullshit
 func (game *Game) FinishDealerHand() {
 	decision := game.Dealer.TakeDecision(game.DealerHand)
 
-	for reflect.ValueOf(decision).Pointer() == reflect.ValueOf((*Game).Hit).Pointer() { //while the dealer decides to hit
+	for reflect.ValueOf(decision).Pointer() == reflect.ValueOf((*Game).Hit).Pointer() { //while the dealer decides to hit, crazy stuff i know
 		decision(game)
 		decision = game.Dealer.TakeDecision(game.DealerHand)
 	}
 	decision(game) //the dealer stands here
 }
 
-func (game *Game) EndHand() {
+func (game *Game) EndHand() { //TODO
+
 	outcome := computeOutcome(game.PlayerHand, game.DealerHand)
+	winnings := game.computeWinningsForPlayer(outcome, game.PlayerBet)
+	moneyOperations := game.computeMoneyOperations(winnings)
+
+	fmt.Println(moneyOperations)
+
+	game.PlayerBalance += int(winnings)
+
 	game.PlayerHand = nil
 	game.DealerHand = nil
 	fmt.Println(outcome)
+	fmt.Println(winnings)
+	fmt.Println(game.PlayerBalance)
+
+	min := 52 * game.NumDecks / 3 //reshuffle after we consumed 2/3
+	if len(game.Deck) < min {
+		game.ShuffleNewDeck()
+	}
 }
+
+func (game *Game) computeMoneyOperations(w winnings) []MoneyOperation { //TODO
+
+	return []MoneyOperation{{betBack, game.PlayerBet}}
+}
+
+type winnings int
+
+func (game *Game) computeWinningsForPlayer(outcome BlackjackOutcome, playerBet int) winnings {
+	switch outcome.winner {
+	case player:
+		if outcome.blackjack {
+			return winnings(int(float64(playerBet) * game.BlackjackPayout))
+		}
+		return winnings(playerBet * 2)
+	case dealer:
+		return winnings(0)
+	case draw:
+		return winnings(playerBet)
+	default:
+		panic("ERROR: Wrong outcome")
+	}
+}
+
+type MoneyOperationType uint8
+
+type MoneyOperation struct {
+	operationType MoneyOperationType
+	amount        int
+}
+
+const (
+	bet MoneyOperationType = iota
+	betBack
+	win
+)
 
 type BlackjackWinner uint8
 
@@ -93,22 +162,32 @@ const (
 type BlackjackOutcome struct {
 	winner         BlackjackWinner
 	theOtherBusted bool
+	blackjack      bool
 }
 
 func computeOutcome(playerHand hand.Hand, dealerHand hand.Hand) BlackjackOutcome {
-	_, playerScore := playerHand.Score()
-	_, dealerScore := dealerHand.Score()
+	playerScore := playerHand.Score()
+	dealerScore := dealerHand.Score()
+
+	playerBlackjack := playerHand.Blackjack()
+	dealerBlackjack := dealerHand.Blackjack()
 	switch {
+	case playerBlackjack && dealerBlackjack:
+		return BlackjackOutcome{draw, false, true}
+	case dealerBlackjack:
+		return BlackjackOutcome{dealer, false, true}
+	case playerBlackjack:
+		return BlackjackOutcome{player, false, true}
 	case playerScore > 21: //if player busts nothing else matters
-		return BlackjackOutcome{dealer, true}
+		return BlackjackOutcome{dealer, true, false}
 	case dealerScore > 21:
-		return BlackjackOutcome{player, true}
+		return BlackjackOutcome{player, true, false}
 	case playerScore > dealerScore:
-		return BlackjackOutcome{player, false}
+		return BlackjackOutcome{player, false, false}
 	case playerScore < dealerScore:
-		return BlackjackOutcome{dealer, false}
+		return BlackjackOutcome{dealer, false, false}
 	case playerScore == dealerScore:
-		return BlackjackOutcome{draw, false}
+		return BlackjackOutcome{draw, false, false}
 	default:
 		panic("Something's wrong with the outcome")
 	}
