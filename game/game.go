@@ -37,9 +37,27 @@ func (game *Game) Bet(bet int) {
 }
 
 func (game *Game) DoubleDown() { //TODO: handle len(game.PlayerHand) > 2
+	if game.State != StatePlayerTurn {
+
+	}
+	if len(game.PlayerHand) != 2 {
+		//handle
+	}
 	game.PlayerBet *= 2
 	game.Hit()
 	game.Stand()
+}
+
+func (game *Game) Split() {
+	if game.State != StatePlayerTurn {
+
+	}
+	if len(game.PlayerHand) != 2 {
+		//you can only split with two cards in hand
+	}
+	if game.PlayerHand[0].Rank != game.PlayerHand[0].Rank {
+		//you can only split cards with same rank
+	}
 }
 
 func (game *Game) GetCurrentPlayerHand() *hand.Hand {
