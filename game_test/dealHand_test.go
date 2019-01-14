@@ -1,6 +1,7 @@
 package game_test
 
 import (
+	"blackjack/dealer"
 	"blackjack/game"
 	"blackjack/hand"
 	"blackjack/player"
@@ -12,29 +13,24 @@ import (
 )
 
 func TestDealStartingHands(t *testing.T) {
-	g := game.Game{
-		Dealer:          game.BasicDealer{},
-		State:           game.StatePlayerTurn,
-		NumDecks:        3,
-		BlackjackPayout: 1.5,
-		Player:          player.New(50),
-	}
+	var g game.Game
+	g = game.New(3, 1.5, player.New(50), dealer.NewDefaultDealer())
 
 	g.ShuffleNewDeck()
-	initialDeck := g.Deck
+	initialDeck := g.GetDeck()
 
-	equals(t, len(g.Deck), 52*3)
+	equals(t, len(g.GetDeck()), 52*3)
 
 	g.DealStartingHands()
 
-	equals(t, len(g.Player.GetCurrentHandCards()), 2)
-	equals(t, len(g.DealerHand), 2)
+	equals(t, len(g.GetPlayer().GetCurrentHandCards()), 2)
+	equals(t, len(g.GetDealer().GetDealerHand()), 2)
 
-	equals(t, g.Player.GetCurrentHandCards(), append(hand.Hand{initialDeck[0]}, initialDeck[2]))
-	equals(t, g.DealerHand, append(hand.Hand{initialDeck[1]}, initialDeck[3]))
+	equals(t, g.GetPlayer().GetCurrentHandCards(), append(hand.Hand{initialDeck[0]}, initialDeck[2]))
+	equals(t, g.GetDealer().GetDealerHand(), append(hand.Hand{initialDeck[1]}, initialDeck[3]))
 
-	equals(t, len(g.Deck), 52*3-4)
-	equals(t, g.Deck[0], initialDeck[4])
+	equals(t, len(g.GetDeck()), 52*3-4)
+	equals(t, g.GetDeck()[0], initialDeck[4])
 }
 
 func equals(tb testing.TB, exp, act interface{}) {

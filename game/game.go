@@ -1,12 +1,12 @@
 package game
 
 import (
-	"blackjack/blackjackWinner"
+	"blackjack/dealer"
 	"blackjack/hand"
+	"blackjack/outcome"
 	"blackjack/player"
 	"deck"
 	"fmt"
-	"reflect"
 )
 
 type GameSessionState uint8
@@ -18,195 +18,178 @@ const (
 	StateHandOver
 )
 
-type Game struct {
-	NumDecks        int
-	BlackjackPayout float64
+type Game interface {
+	DealStartingHands()
+	Bet(int)
+	PlaceInsurance()
+	DoubleDown()
+	Split()
+	ShuffleNewDeck()
+	Hit()
+	Stand()
+	FinishDealerHand()
+	EndHand()
 
-	Deck  deck.Deck
-	State GameSessionState
-
-	Player        player.Player
-	CurrentPlayer uint8
-	TotalPlayers  uint8
-
-	DealerHand hand.Hand
-	Dealer     Dealer
+	GetPlayer() player.Player
+	GetDealer() dealer.Dealer
+	GetDeck() deck.Deck
+	GetState() GameSessionState
+	GetBlackjackPayout() float64
 }
 
-func (game *Game) Bet(bet int) {
-	if game.State != StateBet {
+type game struct {
+	numDecks        int
+	blackjackPayout float64
 
-	}
-	_ = game.Player.SetCurrentHandBet(bet)
+	deck  deck.Deck
+	state GameSessionState
+
+	player        player.Player
+	currentPlayer uint8
+	totalPlayers  uint8
+
+	dealer dealer.Dealer
 }
 
-func (game *Game) DoubleDown() { //TODO: handle len(game.PlayerHand) > 2
-	if game.State != StatePlayerTurn {
+func New(numDecks int, blackjackPayout float64, player player.Player, dealer dealer.Dealer) *game {
+	return &game{
+		numDecks:        numDecks,
+		blackjackPayout: blackjackPayout,
+		player:          player,
+		dealer:          dealer,
+	}
+}
+
+func (game *game) Bet(bet int) {
+	if game.state != StateBet {
 
 	}
+	_ = game.player.SetCurrentHandBet(bet)
+}
 
-	if len(game.Player.GetCurrentHandCards()) != 2 {
-		//handle
+func (game *game) PlaceInsurance() {
+
+}
+
+func (game *game) DoubleDown() {
+	if game.state != StatePlayerTurn {
+
 	}
-	_ = game.Player.DoubleCurrentHandBet()
+	_ = game.player.DoubleCurrentHandBet()
 	game.Hit()
 	game.Stand()
 }
 
-func (game *Game) Split() {
-	if game.State != StatePlayerTurn {
+func (game *game) Split() {
+	if game.state != StatePlayerTurn {
 
 	}
-	if len(game.Player.GetCurrentHandCards()) != 2 {
+	if len(game.player.GetCurrentHandCards()) != 2 {
 		//you can only split with two cards in hand
 	}
-	if game.Player.GetCurrentHandCards()[0].Rank != game.Player.GetCurrentHandCards()[0].Rank {
+	if game.player.GetCurrentHandCards()[0].Rank != game.player.GetCurrentHandCards()[0].Rank {
 		//you can only split cards with same rank
 	}
+
+	err := game.player.SplitHands()
+	fmt.Println(err)
 }
 
-func (game *Game) GetCurrentPlayerHand() *hand.Hand {
-	switch game.State {
+func (game *game) getCurrentPlayerHand() *hand.Hand {
+	switch game.state {
 	case StatePlayerTurn:
-		return game.Player.GetCurrentHandCardsPointer()
+		return game.player.GetCurrentHandCardsPointer()
 	case StateDealerTurn:
-		return &game.DealerHand
+		return game.dealer.GetDealerHandPointer()
 	default:
 		panic("ERROR: it isn't currently any player turn")
 	}
 }
 
-func (game *Game) ShuffleNewDeck() {
-	game.Deck = deck.New(deck.Amount(game.NumDecks), deck.Shuffle)
+func (game *game) ShuffleNewDeck() {
+	game.deck = deck.New(deck.Amount(game.numDecks), deck.Shuffle)
 }
 
-func (game *Game) Hit() {
-	game.GetCurrentPlayerHand().AddCard(game.Deck.DealCard())
+func (game *game) Hit() {
+	game.getCurrentPlayerHand().AddCard(game.deck.DealCard())
 }
 
-func (game *Game) Stand() {
-	switch game.State {
+func (game *game) Stand() {
+	switch game.state {
 	case StatePlayerTurn:
-		game.State = StateDealerTurn
+		game.state = StateDealerTurn
 	case StateDealerTurn:
-		game.State = StateHandOver
+		game.state = StateHandOver
 	}
 }
 
-func (game *Game) DealStartingHands() { //FIXME bullshit
+func (game *game) DealStartingHands() { //FIXME bullshit changing states
 	for i := 0; i < 2; i++ {
-		game.State = StatePlayerTurn
+		game.state = StatePlayerTurn
 		game.Hit()
-		game.State = StateDealerTurn
+		game.state = StateDealerTurn
 		game.Hit()
 	}
 	//game.PlayerHand = hand.Hand{{deck.Clubs,deck.Six}, {deck.Clubs, deck.Five}, {deck.Clubs, deck.Ten}}
 	//game.DealerHand = hand.Hand{{deck.Clubs,deck.Ace}, {deck.Clubs, deck.King}}
 
-	game.State = StatePlayerTurn
+	game.state = StatePlayerTurn
 }
 
-func (game *Game) FinishDealerHand() {
-	if game.State != StateDealerTurn {
+func (game *game) FinishDealerHand() {
+	if game.state != StateDealerTurn {
 
 	}
-	decision := game.Dealer.TakeDecision(game.DealerHand)
 
-	for reflect.ValueOf(decision).Pointer() == reflect.ValueOf((*Game).Hit).Pointer() { //while the dealer decides to hit, execute the hit method, crazy stuff i know
-		decision(game)
-		decision = game.Dealer.TakeDecision(game.DealerHand)
+	canHit := game.dealer.CanHit()
+
+	for canHit { //while the dealer decides to hit, execute the hit method, crazy stuff i know
+		game.Hit()
+		canHit = game.dealer.CanHit()
 	}
-	decision(game) //the dealer stands here
+
+	game.Stand()
 }
 
-func (game *Game) EndHand() { //TODO
+func (game *game) EndHand() { //TODO
 
-	outcome := computeOutcome(game.Player.GetCurrentHandCards(), game.DealerHand)
-	winnings := game.computeWinningsForPlayer(outcome, game.Player.GetCurrentHandBet())
-	moneyOperations := game.computeMoneyOperations(winnings)
+	result := outcome.ComputeOutcome(game.player.GetCurrentHandCards(), game.dealer.GetDealerHand())
+	winnings := outcome.ComputeWinningsForPlayer(result, game.player.GetCurrentHandBet(), game.GetBlackjackPayout())
+	moneyOperations := outcome.ComputeMoneyOperations(winnings, game.GetPlayer().GetCurrentHandBet())
 
 	fmt.Println(moneyOperations)
 
-	game.Player.SetBalance(game.Player.GetBalance() + int(winnings))
+	game.player.SetBalance(game.player.GetBalance() + int(winnings))
 
-	game.Player.ResetHands()
-	game.DealerHand = nil
-	fmt.Println(outcome)
+	game.player.ResetHands()
+	game.dealer.ResetHands()
+
+	fmt.Println(result)
 	fmt.Println(winnings)
-	fmt.Println(game.Player.GetBalance())
+	fmt.Println(game.player.GetBalance())
 
-	min := 52 * game.NumDecks / 3 //reshuffle after we consumed 2/3
-	if len(game.Deck) < min {
+	min := 52 * game.numDecks / 3 //reshuffle after we consumed 2/3
+	if len(game.deck) < min {
 		game.ShuffleNewDeck()
 	}
 }
 
-func (game *Game) computeMoneyOperations(w winnings) []MoneyOperation { //TODO
-
-	return []MoneyOperation{{betBack, game.Player.GetCurrentHandBet()}}
+func (game game) GetDealer() dealer.Dealer {
+	return game.dealer
 }
 
-type winnings int
-
-func (game *Game) computeWinningsForPlayer(outcome BlackjackOutcome, playerBet int) winnings {
-	switch outcome.winner {
-	case blackjackWinner.Player:
-		if outcome.blackjack {
-			return winnings(int(float64(playerBet) * game.BlackjackPayout))
-		}
-		return winnings(playerBet * 2)
-	case blackjackWinner.Dealer:
-		return winnings(0)
-	case blackjackWinner.Draw:
-		return winnings(playerBet)
-	default:
-		panic("ERROR: Wrong outcome")
-	}
+func (game game) GetDeck() deck.Deck {
+	return game.deck
 }
 
-type MoneyOperationType uint8
-
-type MoneyOperation struct {
-	operationType MoneyOperationType
-	amount        int
+func (game game) GetPlayer() player.Player {
+	return game.player
 }
 
-const (
-	bet MoneyOperationType = iota
-	betBack
-	win
-)
-
-type BlackjackOutcome struct {
-	winner         blackjackWinner.BlackjackWinner
-	theOtherBusted bool
-	blackjack      bool
+func (game game) GetState() GameSessionState {
+	return game.state
 }
 
-func computeOutcome(playerHand hand.Hand, dealerHand hand.Hand) BlackjackOutcome {
-	playerScore := playerHand.Score()
-	dealerScore := dealerHand.Score()
-
-	playerBlackjack := playerHand.Blackjack()
-	dealerBlackjack := dealerHand.Blackjack()
-	switch {
-	case playerBlackjack && dealerBlackjack:
-		return BlackjackOutcome{blackjackWinner.Draw, false, true}
-	case dealerBlackjack:
-		return BlackjackOutcome{blackjackWinner.Dealer, false, true}
-	case playerBlackjack:
-		return BlackjackOutcome{blackjackWinner.Player, false, true}
-	case playerScore > 21: //if player busts nothing else matters
-		return BlackjackOutcome{blackjackWinner.Dealer, true, false}
-	case dealerScore > 21:
-		return BlackjackOutcome{blackjackWinner.Player, true, false}
-	case playerScore > dealerScore:
-		return BlackjackOutcome{blackjackWinner.Player, false, false}
-	case playerScore < dealerScore:
-		return BlackjackOutcome{blackjackWinner.Dealer, false, false}
-	case playerScore == dealerScore:
-		return BlackjackOutcome{blackjackWinner.Draw, false, false}
-	default:
-		panic("Something's wrong with the outcome")
-	}
+func (game game) GetBlackjackPayout() float64 {
+	return game.blackjackPayout
 }

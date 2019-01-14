@@ -15,7 +15,7 @@ func TestNewPlayer(t *testing.T) {
 	p = New(10)
 	equals(t, p.GetBalance(), 10)
 	equals(t, p.GetCurrentHandIndex(), uint8(0))
-	equals(t, p.GetTotalHands(), uint8(0))
+	equals(t, p.GetTotalHands(), uint8(1))
 	equals(t, len(p.GetCurrentHandCards()), 0)
 	equals(t, p.GetCurrentHandBet(), 0)
 }

@@ -1,54 +1,41 @@
 package main
 
 import (
+	"blackjack/dealer"
 	"blackjack/game"
 	"blackjack/player"
 	"fmt"
 )
 
 func main() {
-
-	g := game.Game{
-		Dealer:          game.BasicDealer{},
-		State:           game.StatePlayerTurn,
-		NumDecks:        3,
-		BlackjackPayout: 1.5,
-		Player:          player.New(50),
-	}
+	var g game.Game
+	g = game.New(3, 1.5, player.New(30), dealer.NewDefaultDealer())
 
 	g.ShuffleNewDeck()
-	fmt.Println(g.Deck)
+	fmt.Println(g.GetDeck())
 	g.DealStartingHands()
 
-	playerIndividualCardScore := g.Player.GetCurrentHandCards().IndividualScore()
-	playerTotalScore := g.Player.GetCurrentHandCards().Score()
-	dealerIndividualCardScore := g.DealerHand.IndividualScore()
-	dealerTotalScore := g.DealerHand.Score()
-	fmt.Println("Starting Player Hand: ", g.Player.GetCurrentHandCards(), " Score: ", playerTotalScore, " Individual Score: ", playerIndividualCardScore)
-	fmt.Println("Starting Dealer Hand: ", g.DealerHand, " Score: ", dealerTotalScore, " Individual Score: ", dealerIndividualCardScore)
-	//humanMock := ai.HumanAI{}
+	playerIndividualCardScore := g.GetPlayer().GetCurrentHandCards().IndividualScore()
+	playerTotalScore := g.GetPlayer().GetCurrentHandCards().Score()
+	dealerIndividualCardScore := g.GetDealer().GetDealerHand().IndividualScore()
+	dealerTotalScore := g.GetDealer().GetDealerHand().Score()
+	fmt.Println("Starting Player Hand: ", g.GetPlayer().GetCurrentHandCards(), " Score: ", playerTotalScore, " Individual Score: ", playerIndividualCardScore)
+	fmt.Println("Starting Dealer Hand: ", g.GetDealer().GetDealerFirstCard(), " Score: ", dealerTotalScore, " Individual Score: ", dealerIndividualCardScore)
+
 	g.Bet(10)
-	g.DoubleDown()
-	//for g.State == game.StatePlayerTurn {
-	//	//decision := humanMock.Play(g.PlayerHand, g.DealerHand[0])
-	//	//g.DoubleDown()
-	//	g.Hit()
-	//	//decision(g)
-	//	g.Stand()
-	//}
 
-	if g.State == game.StateDealerTurn {
-		g.FinishDealerHand()
-		g.Stand()
-	}
+	g.Hit()
+	g.Stand()
 
-	playerIndividualCardScore = g.Player.GetCurrentHandCards().IndividualScore()
-	playerTotalScore = g.Player.GetCurrentHandCards().Score()
-	dealerIndividualCardScore = g.DealerHand.IndividualScore()
-	dealerTotalScore = g.DealerHand.Score()
+	g.FinishDealerHand()
 
-	fmt.Println("Final Player Hand: ", g.Player.GetCurrentHandCards(), " Score: ", playerTotalScore, " Individual Score: ", playerIndividualCardScore)
-	fmt.Println("Final Dealer Hand: ", g.DealerHand, " Score: ", dealerTotalScore, " Individual Score: ", dealerIndividualCardScore)
-	fmt.Println(g.Deck)
+	playerIndividualCardScore = g.GetPlayer().GetCurrentHandCards().IndividualScore()
+	playerTotalScore = g.GetPlayer().GetCurrentHandCards().Score()
+	dealerIndividualCardScore = g.GetDealer().GetDealerHand().IndividualScore()
+	dealerTotalScore = g.GetDealer().GetDealerHand().Score()
+
+	fmt.Println("Final Player Hand: ", g.GetPlayer().GetCurrentHandCards(), " Score: ", playerTotalScore, " Individual Score: ", playerIndividualCardScore)
+	fmt.Println("Final Dealer Hand: ", g.GetDealer().GetDealerHand(), " Score: ", dealerTotalScore, " Individual Score: ", dealerIndividualCardScore)
+	fmt.Println(g.GetDeck())
 	g.EndHand()
 }
