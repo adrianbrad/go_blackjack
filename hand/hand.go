@@ -6,6 +6,10 @@ import (
 
 type Hand []deck.Card
 
+func New(size uint8) Hand {
+	return make(Hand, size)
+}
+
 func (hand Hand) MinScore() int {
 	score := 0
 	var individualValues []int
@@ -24,6 +28,14 @@ func min(number, max int) int {
 		return number
 	}
 	return max
+}
+
+func (hand *Hand) AddCard(card deck.Card) {
+	*hand = append(*hand, card)
+}
+
+func (hand *Hand) RemoveCardAtIndex(index uint8) {
+	*hand = append((*hand)[:index], (*hand)[index+1:]...)
 }
 
 func (hand Hand) Score() int {
@@ -73,6 +85,25 @@ func (hand Hand) Blackjack() bool { //Returns true if hand is blackjack
 	return hand.Score() == 21 && len(hand) == 2
 }
 
-//func DrawCard(deck *deck.Deck, hand *Hand) {
-//	*hand = append(*hand, deck.DealCard())
-//}
+type playerHand struct {
+	hand Hand
+	bet  int
+}
+
+type PlayerHands struct {
+	Hands            []playerHand
+	CurrentHandIndex uint8
+	TotalHands       uint8
+}
+
+func (playerHands *PlayerHands) SetCurrentHandBet(bet int) {
+	playerHands.Hands[playerHands.CurrentHandIndex].bet = bet
+}
+
+func (playerHands PlayerHands) GetCurrentHandBet() int {
+	return playerHands.Hands[playerHands.CurrentHandIndex].bet
+}
+
+func (playerHands PlayerHands) GetCurrentHand() Hand {
+	return playerHands.Hands[playerHands.CurrentHandIndex].hand
+}

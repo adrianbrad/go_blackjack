@@ -3,6 +3,7 @@ package game_test
 import (
 	"blackjack/game"
 	"blackjack/hand"
+	"blackjack/player"
 	"fmt"
 	"path/filepath"
 	"reflect"
@@ -16,7 +17,7 @@ func TestDealStartingHands(t *testing.T) {
 		State:           game.StatePlayerTurn,
 		NumDecks:        3,
 		BlackjackPayout: 1.5,
-		PlayerBalance:   50,
+		Player:          player.New(50),
 	}
 
 	g.ShuffleNewDeck()
@@ -26,10 +27,10 @@ func TestDealStartingHands(t *testing.T) {
 
 	g.DealStartingHands()
 
-	equals(t, len(g.PlayerHand), 2)
+	equals(t, len(g.Player.GetCurrentHandCards()), 2)
 	equals(t, len(g.DealerHand), 2)
 
-	equals(t, g.PlayerHand, append(hand.Hand{initialDeck[0]}, initialDeck[2]))
+	equals(t, g.Player.GetCurrentHandCards(), append(hand.Hand{initialDeck[0]}, initialDeck[2]))
 	equals(t, g.DealerHand, append(hand.Hand{initialDeck[1]}, initialDeck[3]))
 
 	equals(t, len(g.Deck), 52*3-4)
