@@ -83,6 +83,10 @@ func (player *player) DoubleCurrentHandBet() error {
 		return fmt.Errorf("no bet placed")
 	}
 
+	if len(player.hands[player.currentHandIndex].hand) != 2 {
+		return fmt.Errorf("current hand has more than 2 cards")
+	}
+
 	if player.GetCurrentHandBet()*2 > player.balance {
 		player.hands[player.currentHandIndex].handBet += player.balance
 		player.hands[player.currentHandIndex].doubledBet = true

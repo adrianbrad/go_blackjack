@@ -1,7 +1,7 @@
 package hand
 
 import (
-	"deck"
+	"github.com/adrianbrad/go-deck-of-cards"
 )
 
 type Hand []deck.Card
