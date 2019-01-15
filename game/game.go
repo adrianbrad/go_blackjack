@@ -1,6 +1,7 @@
 package game
 
 import (
+	"blackjack/blackjackErrors"
 	"blackjack/dealer"
 	"blackjack/gameSessionState"
 	"blackjack/hand"
@@ -63,7 +64,10 @@ func (game *game) Bet(bet int) error {
 		return err
 	}
 
-	_ = game.player.SetCurrentHandBet(bet)
+	err = game.player.SetCurrentHandBet(bet)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -119,7 +123,7 @@ func (game *game) getCurrentPlayerHand() (*hand.Hand, error) {
 	case gameSessionState.StateDealerTurn:
 		return game.dealer.GetDealerHandPointer(), nil
 	default:
-		return nil, fmt.Errorf("currently there is no players turn")
+		return nil, fmt.Errorf(blackjackErrors.NoActiveHands)
 	}
 }
 
@@ -143,12 +147,15 @@ func (game *game) Hit() error { //game can end from a hit that busts
 }
 
 func (game *game) Stand() error {
+
 	switch game.state {
 	case gameSessionState.StatePlayerTurn:
 		game.state = gameSessionState.StateDealerTurn
 		game.FinishDealerHand()
 	case gameSessionState.StateDealerTurn:
 		game.state = gameSessionState.StateHandOver
+	default:
+		return fmt.Errorf(blackjackErrors.NoActiveHands)
 	}
 
 	return nil

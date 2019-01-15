@@ -1,6 +1,7 @@
 package player
 
 import (
+	"blackjack/blackjackErrors"
 	"blackjack/hand"
 	"fmt"
 )
@@ -55,18 +56,14 @@ func (player player) GetCurrentHandBet() int {
 
 func (player *player) SetCurrentHandBet(bet int) error {
 	if player.hands[player.currentHandIndex].betPlaced {
-		return fmt.Errorf("bet already placed")
+		return fmt.Errorf(blackjackErrors.BetAlreadyPlaced)
 	}
-
-	if bet <= 0 {
+	if bet < 1 {
 		return fmt.Errorf("bet has to be greater than 0")
 	}
 
 	if bet > player.balance {
-		player.hands[player.currentHandIndex].handBet = player.balance
-		player.hands[player.currentHandIndex].betPlaced = true
-		player.balance = 0
-		return fmt.Errorf("bet given higher then balance. bet set to balance value")
+		return fmt.Errorf(blackjackErrors.BetHigherThanBalance)
 	}
 	player.balance -= bet
 	player.hands[player.currentHandIndex].handBet = bet

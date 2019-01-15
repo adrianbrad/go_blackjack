@@ -2,8 +2,8 @@ package player
 
 import (
 	"blackjack/hand"
-	"deck"
 	"fmt"
+	"github.com/adrianbrad/go-deck-of-cards"
 	"path/filepath"
 	"reflect"
 	"runtime"
