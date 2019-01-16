@@ -42,8 +42,8 @@ func TestPlayer_SetCurrentHandBet(t *testing.T) {
 
 	err = p.SetCurrentHandBet(51)
 	equals(t, err, fmt.Errorf(blackjackErrors.BetHigherThanBalance))
-	equals(t, p.GetCurrentHandBet(), 50)
-	equals(t, p.GetBalance(), 0)
+	equals(t, p.GetCurrentHandBet(), 0)
+	equals(t, p.GetBalance(), 50)
 
 }
 
@@ -61,18 +61,20 @@ func TestPlayer_DoubleCurrentHandBet(t *testing.T) {
 	equals(t, p.GetBalance(), 10)
 
 	err = p.DoubleCurrentHandBet()
-	equals(t, err, fmt.Errorf("bet already doubled"))
+	equals(t, err, fmt.Errorf(blackjackErrors.BetAlreadyDoubled))
 
 	p.ResetHands()
+	p.GetCurrentHandCardsPointer().AddCard(deck.Card{1, 9})
+	p.GetCurrentHandCardsPointer().AddCard(deck.Card{1, 9})
 	err = p.DoubleCurrentHandBet()
 	equals(t, err, fmt.Errorf(blackjackErrors.NoBetsPlaced))
 
 	p.SetBalance(20)
 	_ = p.SetCurrentHandBet(15)
 	err = p.DoubleCurrentHandBet()
-	equals(t, err, fmt.Errorf(blackjackErrors.BetHigherThanBalance))
-	equals(t, p.GetCurrentHandBet(), 20)
-	equals(t, p.GetBalance(), 0)
+	equals(t, err, fmt.Errorf(blackjackErrors.NoMoneyForDoubleDown))
+	equals(t, p.GetCurrentHandBet(), 15)
+	equals(t, p.GetBalance(), 5)
 }
 
 func TestPlayer_SplitHands(t *testing.T) {

@@ -9,4 +9,7 @@ const (
 	DealerFirstCardError      = "dealer first has to be an Ace"
 	SplitCardsNumberError     = "you can split only with two cards in hand"
 	SplitCardsValueError      = "you can split only with two cards of the same value"
+	NoMoneyForDoubleDown      = "not enough money to double down"
+	InvalidCardsForDoubleDown = "current hand has to have 2 cards"
+	BetAlreadyDoubled         = "bet already doubled"
 )

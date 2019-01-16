@@ -80,7 +80,7 @@ func (player *player) SetCurrentHandBet(bet int) error {
 
 func (player *player) DoubleCurrentHandBet() error {
 	if player.hands[player.currentHandIndex].doubledBet {
-		return fmt.Errorf("bet already doubled")
+		return fmt.Errorf(blackjackErrors.BetAlreadyDoubled)
 	}
 
 	if !player.hands[player.currentHandIndex].betPlaced {
@@ -88,7 +88,12 @@ func (player *player) DoubleCurrentHandBet() error {
 	}
 
 	if len(player.hands[player.currentHandIndex].hand) != 2 {
-		return fmt.Errorf("current hand has more than 2 cards")
+		return fmt.Errorf(blackjackErrors.InvalidCardsForDoubleDown)
+	}
+
+	if player.GetBalance() < player.GetCurrentHandBet() {
+		return fmt.Errorf(blackjackErrors.NoMoneyForDoubleDown)
+
 	}
 
 	if player.GetCurrentHandBet()*2 > player.balance {

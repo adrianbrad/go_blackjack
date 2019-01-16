@@ -5,6 +5,7 @@ import (
 	"blackjack/dealer"
 	"blackjack/game"
 	"blackjack/gameSessionState"
+	"blackjack/hand"
 	"blackjack/player"
 	"github.com/adrianbrad/go-deck-of-cards"
 	"testing"
@@ -49,6 +50,8 @@ func TestBetAction(t *testing.T) {
 
 	err = g.Bet(20)
 	equals(t, err.Error(), blackjackErrors.BetAlreadyPlaced)
+
+	g = game.New(3, 1.5, player.New(30), dealer.NewDefaultDealer(), nil)
 
 	err = g.Bet(31)
 	equals(t, err.Error(), blackjackErrors.BetHigherThanBalance)
@@ -109,5 +112,29 @@ func TestPlayerTurnState(t *testing.T) {
 
 	err = g.PlaceInsurance()
 	equals(t, err, nil)
+}
 
+func TestEndStateSplit(t *testing.T) {
+	var g game.Game
+	validDeckForSplitting := deck.Deck{{1, 5}, {0, 9}, {2, 5}, {0, 4}, {0, 3}, {0, 6}}
+	g = game.New(3, 1.5, player.New(30), dealer.NewDefaultDealer(), validDeckForSplitting)
+
+	err := g.Bet(10)
+	equals(t, err, nil)
+
+	err = g.DealStartingHands()
+	equals(t, err, nil)
+
+	err = g.Split()
+	equals(t, err, nil)
+
+	equals(t, g.GetPlayer().GetCurrentHandIndex(), uint8(1))
+	equals(t, g.GetPlayer().GetCurrentHandBet(), 10)
+	equals(t, g.GetPlayer().GetBalance(), 10)
+	equals(t, g.GetPlayer().GetCurrentHandCards(), hand.Hand{{2, 5}})
+
+	err = g.GetPlayer().SetCurrentIndexHand(uint8(0))
+	equals(t, g.GetPlayer().GetCurrentHandIndex(), uint8(0))
+	equals(t, g.GetPlayer().GetCurrentHandBet(), 10)
+	equals(t, g.GetPlayer().GetCurrentHandCards(), hand.Hand{{1, 5}})
 }

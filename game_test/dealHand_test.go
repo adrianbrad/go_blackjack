@@ -20,8 +20,8 @@ func TestDealStartingHands(t *testing.T) {
 	initialDeck := g.GetDeck()
 
 	equals(t, len(g.GetDeck()), 52*3)
-
-	g.DealStartingHands()
+	_ = g.Bet(10)
+	_ = g.DealStartingHands()
 
 	equals(t, len(g.GetPlayer().GetCurrentHandCards()), 2)
 	equals(t, len(g.GetDealer().GetDealerHand()), 2)
