@@ -9,6 +9,7 @@ import (
 type playerHand struct {
 	hand       hand.Hand
 	handBet    int
+	insurance  int
 	betPlaced  bool
 	doubledBet bool
 }
@@ -31,6 +32,8 @@ type Player interface {
 
 	ResetHands()
 	SplitHands() error
+
+	PlaceInsurance()
 }
 
 type player struct {
@@ -48,6 +51,10 @@ func New(balance int) *player {
 		currentHandIndex: 0,
 	}
 	return &p
+}
+
+func (player *player) PlaceInsurance() {
+	player.hands[0].insurance = player.GetCurrentHandBet() / 2
 }
 
 func (player player) GetCurrentHandBet() int {
@@ -77,7 +84,7 @@ func (player *player) DoubleCurrentHandBet() error {
 	}
 
 	if !player.hands[player.currentHandIndex].betPlaced {
-		return fmt.Errorf("no bet placed")
+		return fmt.Errorf(blackjackErrors.NoBetsPlaced)
 	}
 
 	if len(player.hands[player.currentHandIndex].hand) != 2 {
@@ -137,11 +144,11 @@ func (player *player) SplitHands() error {
 	handToBeSplitted := player.GetCurrentHandCards()
 	handToBeSplittedBet := player.GetCurrentHandBet()
 	if len(handToBeSplitted) != 2 {
-		return fmt.Errorf("hand must have exactly two cards to split")
+		return fmt.Errorf(blackjackErrors.SplitCardsNumberError)
 	}
 
 	if handToBeSplitted[0].Rank != handToBeSplitted[1].Rank {
-		return fmt.Errorf("the cards should have the same value for splitting")
+		return fmt.Errorf(blackjackErrors.SplitCardsValueError)
 	}
 
 	newHand := playerHand{}

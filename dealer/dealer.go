@@ -3,14 +3,13 @@ package dealer
 import (
 	"blackjack/hand"
 	"fmt"
-	"github.com/adrianbrad/go-deck-of-cards"
 )
 
 type Dealer interface {
 	CanHit() bool
 	GetDealerHand() hand.Hand
 	GetDealerHandPointer() *hand.Hand
-	GetDealerFirstCard() (*deck.Card, error)
+	GetDealerFirstCard() (hand.Hand, error)
 	ResetHands()
 }
 
@@ -42,9 +41,9 @@ func (dealer *defaultDealer) ResetHands() {
 	dealer.hand = hand.Hand{}
 }
 
-func (dealer defaultDealer) GetDealerFirstCard() (*deck.Card, error) {
+func (dealer defaultDealer) GetDealerFirstCard() (hand.Hand, error) {
 	if len(dealer.hand) < 1 {
 		return nil, fmt.Errorf("dealer has no cards")
 	}
-	return &dealer.GetDealerHand()[0], nil
+	return dealer.GetDealerHand()[0:1], nil
 }

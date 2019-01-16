@@ -45,14 +45,17 @@ type game struct {
 	dealer dealer.Dealer
 }
 
-func New(numDecks int, blackjackPayout float64, player player.Player, dealer dealer.Dealer) *game {
+func New(numDecks int, blackjackPayout float64, player player.Player, dealer dealer.Dealer, deck deck.Deck) *game {
 	g := game{
 		numDecks:        numDecks,
 		blackjackPayout: blackjackPayout,
 		player:          player,
 		dealer:          dealer,
+		deck:            deck,
 	}
-	g.ShuffleNewDeck()
+	if deck == nil {
+		g.ShuffleNewDeck()
+	}
 	g.initialDeck = g.GetDeck()
 	return &g
 
@@ -75,6 +78,18 @@ func (game *game) PlaceInsurance() error {
 	err := game.checkValidState(gameSessionState.StatePlayerTurn)
 	if err != nil {
 		return err
+	}
+
+	dealerFirstCard, _ := game.GetDealer().GetDealerFirstCard()
+
+	if dealerFirstCard.Score() != 11 {
+		return fmt.Errorf(blackjackErrors.DealerFirstCardError)
+	}
+
+	game.GetPlayer().PlaceInsurance()
+
+	if game.GetDealer().GetDealerHand().Blackjack() {
+		game.state = gameSessionState.StateHandOver
 	}
 
 	return nil
@@ -103,17 +118,9 @@ func (game *game) Split() error {
 		return err
 	}
 
-	if len(game.player.GetCurrentHandCards()) != 2 {
-		//you can only split with two cards in hand
-	}
-	if game.player.GetCurrentHandCards()[0].Rank != game.player.GetCurrentHandCards()[0].Rank {
-		//you can only split cards with same rank
-	}
-
 	err = game.player.SplitHands()
-	fmt.Println(err)
 
-	return nil
+	return err
 }
 
 func (game *game) getCurrentPlayerHand() (*hand.Hand, error) {
@@ -201,7 +208,7 @@ func (game *game) FinishDealerHand() error {
 	return nil
 }
 
-func (game *game) EndHand() (outcome.BlackjackOutcome, outcome.Winnings, []outcome.MoneyOperation, error) { //TODO
+func (game *game) EndHand() (outcome.BlackjackOutcome, outcome.Winnings, []outcome.MoneyOperation, error) { //TODO resolve insurance
 
 	err := game.checkValidState(gameSessionState.StateHandOver)
 	if err != nil {

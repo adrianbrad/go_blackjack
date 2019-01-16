@@ -14,7 +14,7 @@ import (
 
 func TestDealStartingHands(t *testing.T) {
 	var g game.Game
-	g = game.New(3, 1.5, player.New(50), dealer.NewDefaultDealer())
+	g = game.New(3, 1.5, player.New(50), dealer.NewDefaultDealer(), nil)
 
 	g.ShuffleNewDeck()
 	initialDeck := g.GetDeck()

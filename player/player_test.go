@@ -1,6 +1,7 @@
 package player
 
 import (
+	"blackjack/blackjackErrors"
 	"blackjack/hand"
 	"fmt"
 	"github.com/adrianbrad/go-deck-of-cards"
@@ -29,18 +30,18 @@ func TestPlayer_SetCurrentHandBet(t *testing.T) {
 	equals(t, err, nil)
 
 	err = p.SetCurrentHandBet(17)
-	equals(t, err, fmt.Errorf("bet already placed"))
+	equals(t, err, fmt.Errorf(blackjackErrors.BetAlreadyPlaced))
 
 	p.ResetHands()
 	p.SetBalance(50)
 
 	err = p.SetCurrentHandBet(0)
-	equals(t, err, fmt.Errorf("bet has to be greater than 0"))
+	equals(t, err, fmt.Errorf(blackjackErrors.BetHasToBeGreaterThanZero))
 	equals(t, p.GetCurrentHandBet(), 0)
 	equals(t, p.GetBalance(), 50)
 
 	err = p.SetCurrentHandBet(51)
-	equals(t, err, fmt.Errorf("bet given higher then balance. bet set to balance value"))
+	equals(t, err, fmt.Errorf(blackjackErrors.BetHigherThanBalance))
 	equals(t, p.GetCurrentHandBet(), 50)
 	equals(t, p.GetBalance(), 0)
 
@@ -51,6 +52,8 @@ func TestPlayer_DoubleCurrentHandBet(t *testing.T) {
 	p = New(20)
 
 	_ = p.SetCurrentHandBet(5)
+	p.GetCurrentHandCardsPointer().AddCard(deck.Card{1, 9})
+	p.GetCurrentHandCardsPointer().AddCard(deck.Card{1, 9})
 
 	err := p.DoubleCurrentHandBet()
 	equals(t, err, nil)
@@ -62,12 +65,12 @@ func TestPlayer_DoubleCurrentHandBet(t *testing.T) {
 
 	p.ResetHands()
 	err = p.DoubleCurrentHandBet()
-	equals(t, err, fmt.Errorf("no bet placed"))
+	equals(t, err, fmt.Errorf(blackjackErrors.NoBetsPlaced))
 
 	p.SetBalance(20)
 	_ = p.SetCurrentHandBet(15)
 	err = p.DoubleCurrentHandBet()
-	equals(t, err, fmt.Errorf("bet given higher then balance. bet set to balance value"))
+	equals(t, err, fmt.Errorf(blackjackErrors.BetHigherThanBalance))
 	equals(t, p.GetCurrentHandBet(), 20)
 	equals(t, p.GetBalance(), 0)
 }

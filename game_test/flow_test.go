@@ -6,12 +6,13 @@ import (
 	"blackjack/game"
 	"blackjack/gameSessionState"
 	"blackjack/player"
+	"github.com/adrianbrad/go-deck-of-cards"
 	"testing"
 )
 
 func TestBetState(t *testing.T) {
 	var g game.Game
-	g = game.New(3, 1.5, player.New(30), dealer.NewDefaultDealer())
+	g = game.New(3, 1.5, player.New(30), dealer.NewDefaultDealer(), nil)
 
 	err := g.Hit()
 	equals(t, err.Error(), blackjackErrors.NoActiveHands)
@@ -42,7 +43,7 @@ func TestBetState(t *testing.T) {
 
 func TestBetAction(t *testing.T) {
 	var g game.Game
-	g = game.New(3, 1.5, player.New(30), dealer.NewDefaultDealer())
+	g = game.New(3, 1.5, player.New(30), dealer.NewDefaultDealer(), nil)
 	err := g.Bet(10)
 	equals(t, g.GetState(), gameSessionState.StateBet)
 
@@ -58,7 +59,7 @@ func TestBetAction(t *testing.T) {
 
 func TestDealAction(t *testing.T) {
 	var g game.Game
-	g = game.New(3, 1.5, player.New(30), dealer.NewDefaultDealer())
+	g = game.New(3, 1.5, player.New(30), dealer.NewDefaultDealer(), nil)
 	_ = g.Bet(10)
 
 	err := g.DealStartingHands()
@@ -67,8 +68,8 @@ func TestDealAction(t *testing.T) {
 
 func TestPlayerTurnState(t *testing.T) {
 	var g game.Game
-	//invalidDeckForInsuranceAndSplitting := deck.Deck{{0,5},{1,6}, {2,7}} //TODO finish this
-	g = game.New(3, 1.5, player.New(30), dealer.NewDefaultDealer())
+	invalidDeckForInsuranceAndSplitting := deck.Deck{{0, 5}, {0, 9}, {0, 7}, {0, 9}, {0, 3}}
+	g = game.New(3, 1.5, player.New(30), dealer.NewDefaultDealer(), invalidDeckForInsuranceAndSplitting)
 	_ = g.Bet(10)
 
 	_ = g.DealStartingHands()
@@ -85,7 +86,28 @@ func TestPlayerTurnState(t *testing.T) {
 	_, _, _, err = g.EndHand()
 	equals(t, err.Error(), "given state: StateHandOver different from the current state: StatePlayerTurn")
 
-	//err = g.PlaceInsurance()
-	//equals(t, err.Error(), "given state: StateHandOver different from the current state: StatePlayerTurn")
+	err = g.PlaceInsurance()
+	equals(t, err.Error(), blackjackErrors.DealerFirstCardError)
+
+	err = g.Split()
+	//fmt.Println(err)
+	equals(t, err.Error(), blackjackErrors.SplitCardsValueError)
+
+	err = g.Hit()
+	equals(t, err, nil)
+	equals(t, len(g.GetPlayer().GetCurrentHandCards()), 3)
+
+	err = g.Stand()
+	equals(t, g.GetState(), gameSessionState.StateHandOver)
+
+	validDeckForInsuranceNoBlackjackDealer := deck.Deck{{0, 5}, {0, 1}, {0, 3}, {0, 10}, {0, 3}}
+	g = game.New(3, 1.5, player.New(30), dealer.NewDefaultDealer(), validDeckForInsuranceNoBlackjackDealer)
+
+	_ = g.Bet(10)
+
+	_ = g.DealStartingHands()
+
+	err = g.PlaceInsurance()
+	equals(t, err, nil)
 
 }
