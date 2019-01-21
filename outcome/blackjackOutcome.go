@@ -11,6 +11,10 @@ type BlackjackOutcome struct {
 	blackjack      bool
 }
 
+func NewBlackjackOutcome(winner blackjackWinner.BlackjackWinner, theOtherBusted, blackjack bool) BlackjackOutcome {
+	return BlackjackOutcome{winner, theOtherBusted, blackjack}
+}
+
 func ComputeOutcome(playerHand hand.Hand, dealerHand hand.Hand) BlackjackOutcome {
 	playerScore := playerHand.Score()
 	dealerScore := dealerHand.Score()
@@ -19,21 +23,21 @@ func ComputeOutcome(playerHand hand.Hand, dealerHand hand.Hand) BlackjackOutcome
 	dealerBlackjack := dealerHand.Blackjack()
 	switch {
 	case playerBlackjack && dealerBlackjack:
-		return BlackjackOutcome{blackjackWinner.Draw, false, true}
+		return NewBlackjackOutcome(blackjackWinner.Draw, false, true)
 	case dealerBlackjack:
-		return BlackjackOutcome{blackjackWinner.Dealer, false, true}
+		return NewBlackjackOutcome(blackjackWinner.Dealer, false, true)
 	case playerBlackjack:
-		return BlackjackOutcome{blackjackWinner.Player, false, true}
+		return NewBlackjackOutcome(blackjackWinner.Player, false, true)
 	case playerScore > 21: //if player busts nothing else matters
-		return BlackjackOutcome{blackjackWinner.Dealer, true, false}
+		return NewBlackjackOutcome(blackjackWinner.Dealer, true, false)
 	case dealerScore > 21:
-		return BlackjackOutcome{blackjackWinner.Player, true, false}
+		return NewBlackjackOutcome(blackjackWinner.Player, true, false)
 	case playerScore > dealerScore:
-		return BlackjackOutcome{blackjackWinner.Player, false, false}
+		return NewBlackjackOutcome(blackjackWinner.Player, false, false)
 	case playerScore < dealerScore:
-		return BlackjackOutcome{blackjackWinner.Dealer, false, false}
+		return NewBlackjackOutcome(blackjackWinner.Dealer, false, false)
 	case playerScore == dealerScore:
-		return BlackjackOutcome{blackjackWinner.Draw, false, false}
+		return NewBlackjackOutcome(blackjackWinner.Draw, false, false)
 	default:
 		panic("Something's wrong with the outcome")
 	}

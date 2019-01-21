@@ -8,6 +8,7 @@ import (
 	"strings"
 )
 
+//Client interface holds the methods for a client api 
 type Client interface {
 	DisplayOptions()
 }
@@ -74,10 +75,28 @@ func (c client) displayGameInfo() {
 	separator()
 	fmt.Println("Bet: ", c.game.GetPlayer().GetCurrentHandBet())
 	fmt.Println("Balance: ", c.game.GetPlayer().GetBalance())
-	fmt.Println("Player: ", c.game.GetPlayer().GetCurrentHandCards(), "Score: ", c.game.GetPlayer().GetCurrentHandCards().Score())
-	//dealerFirstCard, _ := c.game.GetDealer().GetDealerFirstCard()
-	fmt.Println("Dealer: ", c.game.GetDealer().GetDealerHand())
+	c.displayPlayerHandsInfo()
+	c.displayDealerHandInfo()
 	separator()
+}
+
+func (c client) displayPlayerHandsInfo() {
+	playerHands := c.game.GetPlayer().GetHands()
+	fmt.Println("Player hands")
+	for idx,hand := range playerHands {
+		fmt.Println(idx + 1, " ", hand, " score: ", hand.Score())
+	}
+
+}
+func (c client) displayDealerHandInfo() {
+	fmt.Println("Dealer hand")
+	if c.game.GetState() != gameSessionState.StateHandOver {
+		dealerFirstCard,_ := c.game.GetDealer().GetDealerFirstCard()
+		fmt.Println(dealerFirstCard, "Score: ", dealerFirstCard.Score())
+	} else {
+		dealerHand := c.game.GetDealer().GetDealerHand()
+		fmt.Println(dealerHand, "Score: ", dealerHand.Score())
+	}
 }
 
 func (c *client) hit() error {
@@ -132,9 +151,10 @@ func (c *client) doubledown() error {
 func (c *client) finishGameIfPossible() {
 	if c.game.GetState() == gameSessionState.StateHandOver {
 		outcome, winnings, moneyOp, _ := c.game.EndHand()
-		fmt.Println(outcome)
-		fmt.Println(winnings)
-		fmt.Println(moneyOp)
+		fmt.Println("Outcome: ", outcome)
+		fmt.Println("Winnings: ", winnings)
+		fmt.Println("Money operations: ", moneyOp)
+		fmt.Println("Balance: ", c.game.GetPlayer().GetBalance())
 	}
 }
 

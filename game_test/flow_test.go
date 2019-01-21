@@ -6,17 +6,21 @@ import (
 	"blackjack/game"
 	"blackjack/gameSessionState"
 	"blackjack/hand"
+	"blackjack/outcome"
 	"blackjack/player"
-	"github.com/adrianbrad/go-deck-of-cards"
+	"fmt"
 	"testing"
+
+	deck "github.com/adrianbrad/go-deck-of-cards"
 )
 
 func TestBetState(t *testing.T) {
 	var g game.Game
-	g = game.New(3, 1.5, player.New(30), dealer.NewDefaultDealer(), nil)
+	ga := game.New(3, 1.5, player.New(30), dealer.NewDefaultDealer(), nil)
+	g = &ga
 
 	err := g.Hit()
-	equals(t, err.Error(), blackjackErrors.NoActiveHands)
+	equals(t, err.Error(), blackjackErrors.HitPlayerTurnError)
 
 	err = g.Stand()
 	equals(t, err.Error(), blackjackErrors.NoActiveHands)
@@ -25,7 +29,7 @@ func TestBetState(t *testing.T) {
 	equals(t, err.Error(), "given state: StatePlayerTurn different from the current state: StateBet")
 
 	err = g.Split()
-	equals(t, err.Error(), "given state: StatePlayerTurn different from the current state: StateBet")
+	equals(t, err.Error(), "given state: StatePlayerTurn different from the current state: StatePlayerTurn")
 
 	err = g.PlaceInsurance()
 	equals(t, err.Error(), "given state: StatePlayerTurn different from the current state: StateBet")
@@ -44,14 +48,17 @@ func TestBetState(t *testing.T) {
 
 func TestBetAction(t *testing.T) {
 	var g game.Game
-	g = game.New(3, 1.5, player.New(30), dealer.NewDefaultDealer(), nil)
+	ga := game.New(3, 1.5, player.New(30), dealer.NewDefaultDealer(), nil)
+	g = &ga
+
 	err := g.Bet(10)
 	equals(t, g.GetState(), gameSessionState.StateBet)
 
 	err = g.Bet(20)
 	equals(t, err.Error(), blackjackErrors.BetAlreadyPlaced)
 
-	g = game.New(3, 1.5, player.New(30), dealer.NewDefaultDealer(), nil)
+	ga = game.New(3, 1.5, player.New(30), dealer.NewDefaultDealer(), nil)
+	g = &ga
 
 	err = g.Bet(31)
 	equals(t, err.Error(), blackjackErrors.BetHigherThanBalance)
@@ -62,17 +69,20 @@ func TestBetAction(t *testing.T) {
 
 func TestDealAction(t *testing.T) {
 	var g game.Game
-	g = game.New(3, 1.5, player.New(30), dealer.NewDefaultDealer(), nil)
-	_ = g.Bet(10)
+	ga := game.New(3, 1.5, player.New(30), dealer.NewDefaultDealer(), nil)
+	g = &ga
 
+	g.Bet(10)
 	err := g.DealStartingHands()
 	equals(t, err, nil)
 }
 
 func TestPlayerTurnState(t *testing.T) {
 	var g game.Game
-	invalidDeckForInsuranceAndSplitting := deck.Deck{{0, 5}, {0, 9}, {0, 7}, {0, 9}, {0, 3}}
-	g = game.New(3, 1.5, player.New(30), dealer.NewDefaultDealer(), invalidDeckForInsuranceAndSplitting)
+	invalidDeckForInsuranceAndSplitting := deck.Deck{{0, 5}, {0, 9}, {0, 7}, {0, 9}, {0, 3}, {1,5}, {2, 5}}
+	ga := game.New(3, 1.5, player.New(30), dealer.NewDefaultDealer(), invalidDeckForInsuranceAndSplitting)
+	g = &ga
+
 	_ = g.Bet(10)
 
 	_ = g.DealStartingHands()
@@ -98,13 +108,14 @@ func TestPlayerTurnState(t *testing.T) {
 
 	err = g.Hit()
 	equals(t, err, nil)
-	equals(t, len(g.GetPlayer().GetCurrentHandCards()), 3)
+	equals(t, len(g.GetPlayer().GetCurrentHandCards()), 4)
 
 	err = g.Stand()
 	equals(t, g.GetState(), gameSessionState.StateHandOver)
 
 	validDeckForInsuranceNoBlackjackDealer := deck.Deck{{0, 5}, {0, 1}, {0, 3}, {0, 10}, {0, 3}}
-	g = game.New(3, 1.5, player.New(30), dealer.NewDefaultDealer(), validDeckForInsuranceNoBlackjackDealer)
+	ga = game.New(3, 1.5, player.New(30), dealer.NewDefaultDealer(), validDeckForInsuranceNoBlackjackDealer)
+	g = &ga
 
 	_ = g.Bet(10)
 
@@ -114,10 +125,33 @@ func TestPlayerTurnState(t *testing.T) {
 	equals(t, err, nil)
 }
 
+func TestEndState(t *testing.T) {
+	var g game.Game
+	playerBlackjackWinDeck := deck.Deck{{1, 1}, {0, 9}, {2, 10}, {0, 8}}
+	ga := game.New(3, 1.5, player.New(30), dealer.NewDefaultDealer(), playerBlackjackWinDeck)
+	g = &ga
+
+	_ = g.Bet(10)
+
+	_ = g.DealStartingHands()
+
+	_ = g.Stand()
+
+	outcomes, playerWinnings, moneyOperations, err := g.EndHand()
+	equals(t, err, nil)
+
+	equals(t, outcomes, []outcome.BlackjackOutcome{outcome.NewBlackjackOutcome(0, false, true)})
+
+	equals(t, playerWinnings, outcome.Winnings(15))
+
+	equals(t, moneyOperations, outcome.ComputeMoneyOperations(15, 10))
+}
+
 func TestEndStateSplit(t *testing.T) {
 	var g game.Game
 	validDeckForSplitting := deck.Deck{{1, 5}, {0, 9}, {2, 5}, {0, 4}, {0, 3}, {0, 6}}
-	g = game.New(3, 1.5, player.New(30), dealer.NewDefaultDealer(), validDeckForSplitting)
+	ga := game.New(3, 1.5, player.New(30), dealer.NewDefaultDealer(), validDeckForSplitting)
+	g = &ga
 
 	err := g.Bet(10)
 	equals(t, err, nil)
@@ -131,10 +165,12 @@ func TestEndStateSplit(t *testing.T) {
 	equals(t, g.GetPlayer().GetCurrentHandIndex(), uint8(1))
 	equals(t, g.GetPlayer().GetCurrentHandBet(), 10)
 	equals(t, g.GetPlayer().GetBalance(), 10)
-	equals(t, g.GetPlayer().GetCurrentHandCards(), hand.Hand{{2, 5}})
+	equals(t, g.GetPlayer().GetCurrentHandCards(), hand.Hand{{2, 5}, {0, 3}})
 
-	err = g.GetPlayer().SetCurrentIndexHand(uint8(0))
+	err = g.GetPlayer().SetCurrentHandIndex(uint8(0))
 	equals(t, g.GetPlayer().GetCurrentHandIndex(), uint8(0))
 	equals(t, g.GetPlayer().GetCurrentHandBet(), 10)
 	equals(t, g.GetPlayer().GetCurrentHandCards(), hand.Hand{{1, 5}})
+	fmt.Print("asdf")
+	//TODO FINISH SPLIT
 }

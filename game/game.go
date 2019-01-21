@@ -8,9 +8,11 @@ import (
 	"blackjack/outcome"
 	"blackjack/player"
 	"fmt"
-	"github.com/adrianbrad/go-deck-of-cards"
+
+	deck "github.com/adrianbrad/go-deck-of-cards"
 )
 
+//Game defines
 type Game interface {
 	DealStartingHands() error
 	Bet(int) error
@@ -21,7 +23,7 @@ type Game interface {
 	Hit() error
 	Stand() error
 	FinishDealerHand() error
-	EndHand() (outcome.BlackjackOutcome, outcome.Winnings, []outcome.MoneyOperation, error)
+	EndHand() ([]outcome.BlackjackOutcome, outcome.Winnings, []outcome.MoneyOperation, error)
 
 	GetPlayer() player.Player
 	GetDealer() dealer.Dealer
@@ -45,7 +47,8 @@ type game struct {
 	dealer dealer.Dealer
 }
 
-func New(numDecks int, blackjackPayout float64, player player.Player, dealer dealer.Dealer, deck deck.Deck) *game {
+//New creates
+func New(numDecks int, blackjackPayout float64, player player.Player, dealer dealer.Dealer, deck deck.Deck) game {
 	g := game{
 		numDecks:        numDecks,
 		blackjackPayout: blackjackPayout,
@@ -57,7 +60,7 @@ func New(numDecks int, blackjackPayout float64, player player.Player, dealer dea
 		g.ShuffleNewDeck()
 	}
 	g.initialDeck = g.GetDeck()
-	return &g
+	return g
 
 }
 
@@ -71,11 +74,13 @@ func (game *game) Bet(bet int) error {
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
 func (game *game) PlaceInsurance() error {
 	err := game.checkValidState(gameSessionState.StatePlayerTurn)
+
 	if err != nil {
 		return err
 	}
@@ -120,6 +125,7 @@ func (game *game) Split() error {
 
 	err = game.player.SplitHands()
 
+	game.Hit() //as the player has to be dealt another card, currently he has only one
 	return err
 }
 
@@ -139,6 +145,10 @@ func (game *game) ShuffleNewDeck() {
 }
 
 func (game *game) Hit() error { //game can end from a hit that busts
+	if game.GetState() != gameSessionState.StatePlayerTurn {
+		return fmt.Errorf(blackjackErrors.HitPlayerTurnError)
+	}
+
 	currentPlayerHand, err := game.getCurrentPlayerHand()
 	if err != nil {
 		return err
@@ -146,7 +156,7 @@ func (game *game) Hit() error { //game can end from a hit that busts
 
 	currentPlayerHand.AddCard(game.deck.DealCard())
 
-	if currentPlayerHand.Score() > 21 { //if player busts go directly to endgame
+	if currentPlayerHand.Score() > 21 {
 		game.Stand()
 	}
 
@@ -157,8 +167,14 @@ func (game *game) Stand() error {
 
 	switch game.state {
 	case gameSessionState.StatePlayerTurn:
-		game.state = gameSessionState.StateDealerTurn
-		game.FinishDealerHand()
+		currentHandIndex := game.GetPlayer().GetCurrentHandIndex()
+		if currentHandIndex == game.GetPlayer().GetTotalHands()-1 {
+			game.state = gameSessionState.StateDealerTurn
+			game.FinishDealerHand()
+		} else {
+			game.GetPlayer().SetCurrentHandIndex(currentHandIndex + 1)
+			game.Hit() // player splitted his hands, so he has only one card
+		}
 	case gameSessionState.StateDealerTurn:
 		game.state = gameSessionState.StateHandOver
 	default:
@@ -173,19 +189,23 @@ func (game *game) DealStartingHands() error { //FIXME bullshit changing states
 	if err != nil {
 		return err
 	}
+	
+	game.state = gameSessionState.StatePlayerTurn
 	if game.GetPlayer().GetCurrentHandBet() <= 0 {
 		return fmt.Errorf("no bets placed")
 	}
 
 	for i := 0; i < 2; i++ {
-		game.state = gameSessionState.StatePlayerTurn
 		_ = game.Hit()
-		game.state = gameSessionState.StateDealerTurn
-		_ = game.Hit()
+		game.dealerHit()
 	}
 
 	game.state = gameSessionState.StatePlayerTurn
 	return nil
+}
+
+func (game *game) dealerHit() {
+	game.GetDealer().GetDealerHandPointer().AddCard(game.deck.DealCard())
 }
 
 func (game *game) FinishDealerHand() error {
@@ -197,30 +217,42 @@ func (game *game) FinishDealerHand() error {
 	canHit := game.dealer.CanHit()
 
 	for canHit { //while the dealer decides to hit, execute the hit method, crazy stuff i know
-		_ = game.Hit()
+		game.dealerHit()
 		canHit = game.dealer.CanHit()
 	}
 
-	if game.state == gameSessionState.StateDealerTurn { //dealer can bust and we get to StateEndHand
-		game.Stand()
-	}
+	game.Stand()
 
 	return nil
 }
 
-func (game *game) EndHand() (outcome.BlackjackOutcome, outcome.Winnings, []outcome.MoneyOperation, error) { //TODO resolve insurance
+func (game *game) EndHand() ([]outcome.BlackjackOutcome, outcome.Winnings, []outcome.MoneyOperation, error) { //TODO resolve insurance
 
 	err := game.checkValidState(gameSessionState.StateHandOver)
 	if err != nil {
-		return outcome.BlackjackOutcome{}, outcome.Winnings(0), []outcome.MoneyOperation{}, err
+		return nil, outcome.Winnings(0), []outcome.MoneyOperation{}, err
 	}
 
-	result := outcome.ComputeOutcome(game.player.GetCurrentHandCards(), game.dealer.GetDealerHand())
-	winnings := outcome.ComputeWinningsForPlayer(result, game.player.GetCurrentHandBet(), game.GetBlackjackPayout())
-	moneyOperations := outcome.ComputeMoneyOperations(winnings, game.GetPlayer().GetCurrentHandBet())
+	totalHands := game.GetPlayer().GetTotalHands()
+	totalWinnings := outcome.Winnings(0)
+	var handOutcomes []outcome.BlackjackOutcome
+	var moneyOperations []outcome.MoneyOperation
 
-	game.player.SetBalance(game.player.GetBalance() + int(winnings))
+	for i := uint8(0); i < totalHands; i++ {
+		game.GetPlayer().SetCurrentHandIndex(i)
 
+		handOutcome := outcome.ComputeOutcome(game.GetPlayer().GetCurrentHandCards(), game.GetDealer().GetDealerHand())
+		game.GetPlayer().SetCurrentHandOutcome(handOutcome)
+
+		handOutcomes = append(handOutcomes, handOutcome)
+		winnings := outcome.ComputeWinningsForPlayer(handOutcome, game.GetPlayer().GetCurrentHandBet(), game.GetBlackjackPayout())
+		game.GetPlayer().SetCurrentHandWinnings(winnings)
+		totalWinnings += winnings
+
+		moneyOperations = append(moneyOperations, outcome.ComputeMoneyOperations(winnings, game.GetPlayer().GetCurrentHandBet())...)
+	}
+
+	game.player.SetBalance(game.player.GetBalance() + int(totalWinnings))
 	game.player.ResetHands()
 	game.dealer.ResetHands()
 	game.state = gameSessionState.StateBet
@@ -230,7 +262,7 @@ func (game *game) EndHand() (outcome.BlackjackOutcome, outcome.Winnings, []outco
 		game.ShuffleNewDeck()
 	}
 
-	return result, winnings, moneyOperations, nil
+	return handOutcomes, totalWinnings, moneyOperations, nil
 }
 
 func (game game) GetDealer() dealer.Dealer {

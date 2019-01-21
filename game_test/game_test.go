@@ -11,7 +11,8 @@ import (
 func TestNewGame(t *testing.T) {
 	var g game.Game
 
-	g = game.New(5, 1.5, player.New(30), dealer.NewDefaultDealer(), nil)
+	ga := game.New(5, 1.5, player.New(30), dealer.NewDefaultDealer(), nil)
+	g = &ga
 
 	equals(t, g.GetState(), gameSessionState.StateBet)
 	equals(t, g.GetBlackjackPayout(), 1.5)

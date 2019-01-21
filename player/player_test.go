@@ -1,6 +1,9 @@
 package player
 
 import (
+	"blackjack/blackjackWinner"
+	"blackjack/outcome"
+
 	"blackjack/blackjackErrors"
 	"blackjack/hand"
 	"fmt"
@@ -11,6 +14,13 @@ import (
 	"testing"
 )
 
+func equals(tb testing.TB, exp, act interface{}) {
+	if !reflect.DeepEqual(exp, act) {
+		_, file, line, _ := runtime.Caller(1)
+		fmt.Printf("\033[31m%s:%d:\n\n\texp: %#v\n\n\tgot: %#v\033[39m\n\n", filepath.Base(file), line, exp, act)
+		tb.FailNow()
+	}
+}
 func TestNewPlayer(t *testing.T) {
 	var p Player
 	p = New(10)
@@ -96,7 +106,7 @@ func TestPlayer_SplitHands(t *testing.T) {
 	equals(t, p.GetCurrentHandCards(), hand.Hand{{deck.Clubs, deck.Ace}})
 	equals(t, len(p.GetCurrentHandCards()), 1)
 
-	err = p.SetCurrentIndexHand(0)
+	err = p.SetCurrentHandIndex(0)
 	equals(t, err, nil)
 
 	equals(t, p.GetTotalHands(), uint8(2))
@@ -107,13 +117,76 @@ func TestPlayer_SplitHands(t *testing.T) {
 	equals(t, p.GetCurrentHandBet(), 5)
 	equals(t, p.GetCurrentHandCards(), hand.Hand{{deck.Spades, deck.Ace}})
 	equals(t, len(p.GetCurrentHandCards()), 1)
-
 }
 
-func equals(tb testing.TB, exp, act interface{}) {
-	if !reflect.DeepEqual(exp, act) {
-		_, file, line, _ := runtime.Caller(1)
-		fmt.Printf("\033[31m%s:%d:\n\n\texp: %#v\n\n\tgot: %#v\033[39m\n\n", filepath.Base(file), line, exp, act)
-		tb.FailNow()
-	}
+func TestPlayer_PlaceInsurace(t *testing.T) {
+	var p Player
+	p = New(50)
+
+	_ = p.SetCurrentHandBet(40)
+
+	err := p.PlaceInsurance()
+	equals(t, err.Error(), blackjackErrors.InvalidInsuranceHand)
+
+	(*p.GetCurrentHandCardsPointer()).AddCard(deck.Card{deck.Clubs, deck.Ace})
+	(*p.GetCurrentHandCardsPointer()).AddCard(deck.Card{deck.Spades, deck.Ace})
+
+	err = p.PlaceInsurance()
+	equals(t, err.Error(), blackjackErrors.InvalidBalance)
+
+	p = New(50)
+
+	_ = p.SetCurrentHandBet(25)
+
+	(*p.GetCurrentHandCardsPointer()).AddCard(deck.Card{deck.Clubs, deck.Ace})
+	(*p.GetCurrentHandCardsPointer()).AddCard(deck.Card{deck.Spades, deck.Ace})
+
+	err = p.PlaceInsurance()
+	equals(t, err, nil)
+}
+
+func TestPlater_SetWinnings(t *testing.T) {
+	var p Player
+	p = New(50)
+
+	err := p.SetCurrentHandWinnings(outcome.Winnings(30))
+	equals(t, err.Error(), blackjackErrors.InvalidSetWinningsHand)
+
+	_ = p.SetCurrentHandBet(10)
+	err = p.SetCurrentHandWinnings(outcome.Winnings(30))
+	equals(t, err.Error(), blackjackErrors.InvalidSetWinningsHand)
+
+	p = New(50)
+	(*p.GetCurrentHandCardsPointer()).AddCard(deck.Card{deck.Clubs, deck.Ace})
+	(*p.GetCurrentHandCardsPointer()).AddCard(deck.Card{deck.Spades, deck.Ace})
+	err = p.SetCurrentHandWinnings(outcome.Winnings(30))
+	equals(t, err.Error(), blackjackErrors.InvalidSetWinningsHand)
+
+	p.SetCurrentHandBet(10)
+	err = p.SetCurrentHandWinnings(outcome.Winnings(30))
+	equals(t, err, nil)
+}
+
+func TestPlater_SetOutcome(t *testing.T) {
+	var p Player
+	p = New(50)
+
+	outcome := outcome.NewBlackjackOutcome(blackjackWinner.Player, true, true)
+
+	err := p.SetCurrentHandOutcome(outcome)
+	equals(t, err.Error(), blackjackErrors.InvalidSetOutcomeHand)
+
+	_ = p.SetCurrentHandBet(10)
+	err = p.SetCurrentHandOutcome(outcome)
+	equals(t, err.Error(), blackjackErrors.InvalidSetOutcomeHand)
+
+	p = New(50)
+	(*p.GetCurrentHandCardsPointer()).AddCard(deck.Card{deck.Clubs, deck.Ace})
+	(*p.GetCurrentHandCardsPointer()).AddCard(deck.Card{deck.Spades, deck.Ace})
+	err = p.SetCurrentHandOutcome(outcome)
+	equals(t, err.Error(), blackjackErrors.InvalidSetOutcomeHand)
+
+	p.SetCurrentHandBet(10)
+	err = p.SetCurrentHandOutcome(outcome)
+	equals(t, err, nil)
 }

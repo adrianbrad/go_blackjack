@@ -3,15 +3,24 @@ package player
 import (
 	"blackjack/blackjackErrors"
 	"blackjack/hand"
+	"blackjack/outcome"
 	"fmt"
 )
 
 type playerHand struct {
-	hand       hand.Hand
-	handBet    int
+	cards      hand.Hand
+	bet        int
 	insurance  int
-	betPlaced  bool
-	doubledBet bool
+	doubleDown bool
+	winnings   outcome.Winnings
+	outcome    outcome.BlackjackOutcome
+}
+
+type player struct {
+	currentHandIndex uint8
+	totalHands       uint8
+	balance          int
+	hands            []playerHand
 }
 
 type Player interface {
@@ -19,10 +28,11 @@ type Player interface {
 	GetCurrentHandBet() int
 	DoubleCurrentHandBet() error
 
-	SetCurrentIndexHand(uint8) error
+	SetCurrentHandIndex(uint8) error
 	GetCurrentHandIndex() uint8
 
 	GetTotalHands() uint8
+	GetHands() []hand.Hand
 
 	GetCurrentHandCardsPointer() *hand.Hand
 	GetCurrentHandCards() hand.Hand
@@ -33,14 +43,10 @@ type Player interface {
 	ResetHands()
 	SplitHands() error
 
-	PlaceInsurance()
-}
+	PlaceInsurance() error
 
-type player struct {
-	hands            []playerHand
-	currentHandIndex uint8
-	totalHands       uint8
-	balance          int
+	SetCurrentHandWinnings(outcome.Winnings) error
+	SetCurrentHandOutcome(outcome.BlackjackOutcome) error
 }
 
 func New(balance int) *player {
@@ -53,16 +59,62 @@ func New(balance int) *player {
 	return &p
 }
 
-func (player *player) PlaceInsurance() {
-	player.hands[0].insurance = player.GetCurrentHandBet() / 2
+func (player *player) getMoneyFromBalance(amount int) (int, error) {
+	if amount <= player.GetBalance() {
+		player.SetBalance(player.GetBalance() - amount)
+		return amount, nil
+	}
+	return 0, fmt.Errorf(blackjackErrors.InvalidBalance)
+}
+
+func (player *player) PlaceInsurance() error {
+	if player.totalHands == 1 && len(player.hands[0].cards) == 2 {
+		insurance, err := player.getMoneyFromBalance(player.GetCurrentHandBet() / 2)
+		if err == nil {
+			player.hands[0].insurance = insurance
+			return nil
+		}
+		return err
+	}
+	return fmt.Errorf(blackjackErrors.InvalidInsuranceHand)
+}
+
+func (player player) GetHands() []hand.Hand {
+	var hands []hand.Hand
+	for _,hand := range player.hands {
+		hands = append(hands, hand.cards)
+	}
+	return hands
+}
+
+func (player player) getCurrentHand() *playerHand {
+	return &player.hands[player.GetCurrentHandIndex()]
+}
+
+func (player *player) SetCurrentHandWinnings(winnings outcome.Winnings) error {
+	if player.GetCurrentHandBet() == 0 || len(player.GetCurrentHandCards()) < 2 {
+		return fmt.Errorf(blackjackErrors.InvalidSetWinningsHand)
+	}
+
+	player.getCurrentHand().winnings = winnings
+	return nil
+}
+
+func (player *player) SetCurrentHandOutcome(outcome outcome.BlackjackOutcome) error {
+	if player.GetCurrentHandBet() == 0 || len(player.GetCurrentHandCards()) < 2 {
+		return fmt.Errorf(blackjackErrors.InvalidSetOutcomeHand)
+	}
+
+	player.getCurrentHand().outcome = outcome
+	return nil
 }
 
 func (player player) GetCurrentHandBet() int {
-	return player.hands[player.currentHandIndex].handBet
+	return player.hands[player.currentHandIndex].bet
 }
 
 func (player *player) SetCurrentHandBet(bet int) error {
-	if player.hands[player.currentHandIndex].betPlaced {
+	if player.hands[player.currentHandIndex].bet != 0 {
 		return fmt.Errorf(blackjackErrors.BetAlreadyPlaced)
 	}
 	if bet < 1 {
@@ -72,22 +124,25 @@ func (player *player) SetCurrentHandBet(bet int) error {
 	if bet > player.balance {
 		return fmt.Errorf(blackjackErrors.BetHigherThanBalance)
 	}
-	player.balance -= bet
-	player.hands[player.currentHandIndex].handBet = bet
-	player.hands[player.currentHandIndex].betPlaced = true
-	return nil
+
+	validBet, err := player.getMoneyFromBalance(bet)
+	if err == nil {
+		player.hands[player.currentHandIndex].bet = validBet
+		return nil
+	}
+	return err
 }
 
 func (player *player) DoubleCurrentHandBet() error {
-	if player.hands[player.currentHandIndex].doubledBet {
+	if player.hands[player.currentHandIndex].doubleDown {
 		return fmt.Errorf(blackjackErrors.BetAlreadyDoubled)
 	}
 
-	if !player.hands[player.currentHandIndex].betPlaced {
+	if player.hands[player.currentHandIndex].bet == 0 {
 		return fmt.Errorf(blackjackErrors.NoBetsPlaced)
 	}
 
-	if len(player.hands[player.currentHandIndex].hand) != 2 {
+	if len(player.GetCurrentHandCards()) != 2 {
 		return fmt.Errorf(blackjackErrors.InvalidCardsForDoubleDown)
 	}
 
@@ -97,19 +152,19 @@ func (player *player) DoubleCurrentHandBet() error {
 	}
 
 	if player.GetCurrentHandBet()*2 > player.balance {
-		player.hands[player.currentHandIndex].handBet += player.balance
-		player.hands[player.currentHandIndex].doubledBet = true
+		player.hands[player.currentHandIndex].bet += player.balance
+		player.hands[player.currentHandIndex].doubleDown = true
 		player.balance = 0
 
 		return fmt.Errorf("bet given higher then balance. bet set to balance value")
 	}
 	player.balance -= player.GetCurrentHandBet()
-	player.hands[player.currentHandIndex].handBet += player.GetCurrentHandBet()
-	player.hands[player.currentHandIndex].doubledBet = true
+	player.hands[player.currentHandIndex].bet += player.GetCurrentHandBet()
+	player.hands[player.currentHandIndex].doubleDown = true
 	return nil
 }
 
-func (player *player) SetCurrentIndexHand(currentHandIndex uint8) error {
+func (player *player) SetCurrentHandIndex(currentHandIndex uint8) error {
 	if currentHandIndex > player.totalHands-1 {
 		return fmt.Errorf("hand index given bigger than total hands")
 	}
@@ -122,11 +177,11 @@ func (player player) GetCurrentHandIndex() uint8 {
 }
 
 func (player *player) GetCurrentHandCardsPointer() *hand.Hand {
-	return &player.hands[player.currentHandIndex].hand
+	return &player.hands[player.currentHandIndex].cards
 }
 
 func (player player) GetCurrentHandCards() hand.Hand {
-	return player.hands[player.currentHandIndex].hand
+	return player.hands[player.currentHandIndex].cards
 }
 
 func (player *player) SetBalance(balance int) {
@@ -157,7 +212,7 @@ func (player *player) SplitHands() error {
 	}
 
 	newHand := playerHand{}
-	newHand.hand = hand.Hand{handToBeSplitted[1]}
+	newHand.cards = hand.Hand{handToBeSplitted[1]}
 
 	player.GetCurrentHandCardsPointer().RemoveCardAtIndex(1)
 
