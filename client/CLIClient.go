@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-//Client interface holds the methods for a client api 
+//Client interface holds the methods for a client api
 type Client interface {
 	DisplayOptions()
 }
@@ -83,16 +83,16 @@ func (c client) displayGameInfo() {
 func (c client) displayPlayerHandsInfo() {
 	playerHands := c.game.GetPlayer().GetHands()
 	fmt.Println("Player hands")
-	for idx,hand := range playerHands {
-		fmt.Println(idx + 1, " ", hand, " score: ", hand.Score())
+	for idx, hand := range playerHands {
+		fmt.Println(idx+1, " ", hand, " score: ", hand.Score())
 	}
-	fmt.Println("Current hand index: ", c.game.GetPlayer().GetCurrentHandIndex())
+	fmt.Println("Current hand index: ", c.game.GetPlayer().GetCurrentHandIndex()+1)
 
 }
 func (c client) displayDealerHandInfo() {
 	fmt.Println("Dealer hand")
 	if c.game.GetState() != gameSessionState.StateHandOver {
-		dealerFirstCard,_ := c.game.GetDealer().GetDealerFirstCard()
+		dealerFirstCard, _ := c.game.GetDealer().GetDealerFirstCard()
 		fmt.Println(dealerFirstCard, "Score: ", dealerFirstCard.Score())
 	} else {
 		dealerHand := c.game.GetDealer().GetDealerHand()

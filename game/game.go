@@ -95,7 +95,7 @@ func (game *game) DealStartingHands() error {
 
 	for i := 0; i < 2; i++ {
 		_ = game.Hit()
-		if (game.GetState() == gameSessionState.StateHandOver) { //in case the player has blackjack, the stand method will be called from inside the hit method, which will call the finish dealer hand method
+		if game.GetState() == gameSessionState.StateHandOver { //in case the player has blackjack, the stand method will be called from inside the hit method, which will call the finish dealer hand method
 			return nil
 		}
 		game.dealerHit()
@@ -138,8 +138,13 @@ func (game *game) DoubleDown() error {
 		return err
 	}
 
+	currentHandIndex := game.GetPlayer().GetCurrentHandIndex()
+
 	_ = game.Hit()
-	game.Stand()
+
+	if currentHandIndex == game.GetPlayer().GetCurrentHandIndex() { //if player did not draw a blackjack or did not bust, stand automatically
+		game.Stand()
+	}
 
 	return nil
 }
