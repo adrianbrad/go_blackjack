@@ -86,6 +86,7 @@ func (c client) displayPlayerHandsInfo() {
 	for idx,hand := range playerHands {
 		fmt.Println(idx + 1, " ", hand, " score: ", hand.Score())
 	}
+	fmt.Println("Current hand index: ", c.game.GetPlayer().GetCurrentHandIndex())
 
 }
 func (c client) displayDealerHandInfo() {

@@ -14,16 +14,19 @@ import (
 
 //Game defines
 type Game interface {
-	DealStartingHands() error
 	Bet(int) error
+	DealStartingHands() error
+
+	Hit() error
+	Stand() error
 	PlaceInsurance() error
 	DoubleDown() error
 	Split() error
-	ShuffleNewDeck()
-	Hit() error
-	Stand() error
+
 	FinishDealerHand() error
 	EndHand() ([]outcome.BlackjackOutcome, outcome.Winnings, []outcome.MoneyOperation, error)
+
+	ShuffleNewDeck()
 
 	GetPlayer() player.Player
 	GetDealer() dealer.Dealer
@@ -48,8 +51,9 @@ type game struct {
 }
 
 //New creates
-func New(numDecks int, blackjackPayout float64, player player.Player, dealer dealer.Dealer, deck deck.Deck) game {
-	g := game{
+func New(numDecks int, blackjackPayout float64, player player.Player, dealer dealer.Dealer, deck deck.Deck) Game {
+	var g Game
+	g = &game{
 		numDecks:        numDecks,
 		blackjackPayout: blackjackPayout,
 		player:          player,
@@ -59,9 +63,8 @@ func New(numDecks int, blackjackPayout float64, player player.Player, dealer dea
 	if deck == nil {
 		g.ShuffleNewDeck()
 	}
-	g.initialDeck = g.GetDeck()
-	return g
 
+	return g
 }
 
 func (game *game) Bet(bet int) error {
@@ -69,8 +72,6 @@ func (game *game) Bet(bet int) error {
 	if err != nil {
 		return err
 	}
-	game.player.ResetHands()
-	game.dealer.ResetHands()
 
 	err = game.player.SetCurrentHandBet(bet)
 
@@ -78,7 +79,29 @@ func (game *game) Bet(bet int) error {
 		return err
 	}
 
+	return nil
+}
 
+func (game *game) DealStartingHands() error {
+	err := game.checkValidState(gameSessionState.StateBet)
+	if err != nil {
+		return err
+	}
+
+	game.state = gameSessionState.StatePlayerTurn
+	if game.GetPlayer().GetCurrentHandBet() <= 0 {
+		return fmt.Errorf("no bets placed")
+	}
+
+	for i := 0; i < 2; i++ {
+		_ = game.Hit()
+		if (game.GetState() == gameSessionState.StateHandOver) { //in case the player has blackjack, the stand method will be called from inside the hit method, which will call the finish dealer hand method
+			return nil
+		}
+		game.dealerHit()
+	}
+
+	game.state = gameSessionState.StatePlayerTurn
 	return nil
 }
 
@@ -123,14 +146,18 @@ func (game *game) DoubleDown() error {
 
 func (game *game) Split() error {
 	err := game.checkValidState(gameSessionState.StatePlayerTurn)
+
 	if err != nil {
 		return err
 	}
 
 	err = game.player.SplitHands()
 
-	game.Hit() //as the player has to be dealt another card, currently he has only one
-	return err
+	if err != nil {
+		return err
+	}
+	game.Hit() //if split successful, the player has to be dealt another card, currently he has only one
+	return nil
 }
 
 func (game *game) getCurrentPlayerHand() (*hand.Hand, error) {
@@ -185,26 +212,6 @@ func (game *game) Stand() error {
 		return fmt.Errorf(blackjackErrors.NoActiveHands)
 	}
 
-	return nil
-}
-
-func (game *game) DealStartingHands() error { //FIXME bullshit changing states
-	err := game.checkValidState(gameSessionState.StateBet)
-	if err != nil {
-		return err
-	}
-
-	game.state = gameSessionState.StatePlayerTurn
-	if game.GetPlayer().GetCurrentHandBet() <= 0 {
-		return fmt.Errorf("no bets placed")
-	}
-
-	for i := 0; i < 2; i++ {
-		_ = game.Hit()
-		game.dealerHit()
-	}
-
-	game.state = gameSessionState.StatePlayerTurn
 	return nil
 }
 
@@ -263,6 +270,8 @@ func (game *game) EndHand() ([]outcome.BlackjackOutcome, outcome.Winnings, []out
 	if len(game.deck) < min {
 		game.ShuffleNewDeck()
 	}
+	game.player.ResetHands()
+	game.dealer.ResetHands()
 
 	return handOutcomes, totalWinnings, moneyOperations, nil
 }
