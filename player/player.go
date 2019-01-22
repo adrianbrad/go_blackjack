@@ -159,7 +159,6 @@ func (player *player) DoubleCurrentHandBet() error {
 
 	if player.GetBalance() < player.GetCurrentHandBet() {
 		return fmt.Errorf(blackjackErrors.NoMoneyForDoubleDown)
-
 	}
 
 	if player.GetCurrentHandBet()*2 > player.balance {
@@ -220,6 +219,10 @@ func (player *player) SplitHands() error {
 
 	if handToBeSplitted[0].Rank != handToBeSplitted[1].Rank {
 		return fmt.Errorf(blackjackErrors.SplitCardsValueError)
+	}
+
+	if player.GetBalance() < player.GetCurrentHandBet() {
+		return fmt.Errorf(blackjackErrors.NoMoneyForSplitting)
 	}
 
 	newHand := playerHand{}
