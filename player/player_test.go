@@ -166,7 +166,6 @@ func TestPlater_SetWinnings(t *testing.T) {
 	err = p.SetCurrentHandWinnings(outcome.Winnings(30))
 	equals(t, err, nil)
 }
-
 func TestPlater_SetOutcome(t *testing.T) {
 	var p Player
 	p = New(50)

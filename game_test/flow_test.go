@@ -8,7 +8,6 @@ import (
 	"blackjack/hand"
 	"blackjack/outcome"
 	"blackjack/player"
-	"fmt"
 	"testing"
 
 	deck "github.com/adrianbrad/go-deck-of-cards"
@@ -79,7 +78,7 @@ func TestDealAction(t *testing.T) {
 
 func TestPlayerTurnState(t *testing.T) {
 	var g game.Game
-	invalidDeckForInsuranceAndSplitting := deck.Deck{{0, 5}, {0, 9}, {0, 7}, {0, 9}, {0, 3}, {1,5}, {2, 5}}
+	invalidDeckForInsuranceAndSplitting := deck.Deck{{0, 5}, {0, 9}, {0, 7}, {0, 9}, {0, 3}, {1, 5}, {2, 5}}
 	ga := game.New(3, 1.5, player.New(30), dealer.NewDefaultDealer(), invalidDeckForInsuranceAndSplitting)
 	g = &ga
 
@@ -147,9 +146,9 @@ func TestEndState(t *testing.T) {
 	equals(t, moneyOperations, outcome.ComputeMoneyOperations(15, 10))
 }
 
-func TestEndStateSplit(t *testing.T) {
+func TestEndStateSplitPlayerWinsBothHands(t *testing.T) {
 	var g game.Game
-	validDeckForSplitting := deck.Deck{{1, 5}, {0, 9}, {2, 5}, {0, 4}, {0, 3}, {0, 6}}
+	validDeckForSplitting := deck.Deck{{1, 5}, {0, 9}, {2, 5}, {0, 9}, {0, 11}, {0, 6}, {0, 5}, {0, 1}}
 	ga := game.New(3, 1.5, player.New(30), dealer.NewDefaultDealer(), validDeckForSplitting)
 	g = &ga
 
@@ -165,12 +164,88 @@ func TestEndStateSplit(t *testing.T) {
 	equals(t, g.GetPlayer().GetCurrentHandIndex(), uint8(1))
 	equals(t, g.GetPlayer().GetCurrentHandBet(), 10)
 	equals(t, g.GetPlayer().GetBalance(), 10)
-	equals(t, g.GetPlayer().GetCurrentHandCards(), hand.Hand{{2, 5}, {0, 3}})
+	equals(t, g.GetPlayer().GetCurrentHandCards(), hand.Hand{{2, 5}, {0, 11}})
 
 	err = g.GetPlayer().SetCurrentHandIndex(uint8(0))
 	equals(t, g.GetPlayer().GetCurrentHandIndex(), uint8(0))
 	equals(t, g.GetPlayer().GetCurrentHandBet(), 10)
 	equals(t, g.GetPlayer().GetCurrentHandCards(), hand.Hand{{1, 5}})
-	fmt.Print("asdf")
-	//TODO FINISH SPLIT
+
+	g.GetPlayer().SetCurrentHandIndex(uint8(1))
+
+	g.Hit()
+
+	equals(t, g.GetPlayer().GetCurrentHandCards(), hand.Hand{{2, 5}, {0, 11}, {0, 6}})
+
+	g.Stand()
+
+	equals(t, g.GetPlayer().GetCurrentHandIndex(), uint8(0))
+
+	equals(t, g.GetPlayer().GetCurrentHandCards(), hand.Hand{{1, 5}, {0, 5}})
+
+	g.Hit()
+
+	equals(t, g.GetPlayer().GetCurrentHandCards(), hand.Hand{{1, 5}, {0, 5}, {0, 1}})
+
+	g.Stand()
+
+	equals(t, g.GetState(), gameSessionState.StateHandOver)
+
+	outcomes, winnings, _, err := g.EndHand()
+
+	equals(t, err, nil)
+
+	winningsFromHands := g.GetPlayer().GetCurrentHandWinnings()
+	equals(t, outcomes[0], g.GetPlayer().GetCurrentHandOutcome())
+
+	g.GetPlayer().SetCurrentHandIndex(1)
+	winningsFromHands += g.GetPlayer().GetCurrentHandWinnings()
+	equals(t, outcomes[1], g.GetPlayer().GetCurrentHandOutcome())
+
+	equals(t, winnings, winningsFromHands)
+	equals(t, g.GetPlayer().GetBalance(), 30-10-10+20+20)
+	// equals(t, operations, nil)
+}
+
+func TestEndStateSplitPlayerWinsOneHandWithBlackjackLosesTheOtherWithBust(t *testing.T) {
+	var g game.Game
+	validDeckForSplitting := deck.Deck{{1, 10}, {0, 9}, {2, 10}, {0, 9}, {0, 1}, {0, 6}, {0, 10}, {0, 1}}
+	ga := game.New(3, 1.5, player.New(30), dealer.NewDefaultDealer(), validDeckForSplitting)
+	g = &ga
+
+	err := g.Bet(10)
+	equals(t, err, nil)
+
+	err = g.DealStartingHands()
+	equals(t, err, nil)
+
+	err = g.Split()
+	equals(t, err, nil)
+
+	// on the second hand we have a blackjack so we jump back to the first hand
+	equals(t, g.GetPlayer().GetCurrentHandIndex(), uint8(0))
+
+	equals(t, len(g.GetPlayer().GetCurrentHandCards()), 2)
+
+	g.Hit()
+
+	equals(t, len(g.GetPlayer().GetCurrentHandCards()), 3)
+
+	err = g.Hit()
+
+	equals(t, err.Error(), blackjackErrors.HitPlayerTurnError)
+
+	outcomes, winnings, _, err := g.EndHand()
+
+	equals(t, err, nil)
+
+	winningsFromHands := g.GetPlayer().GetCurrentHandWinnings()
+	equals(t, outcomes[1], g.GetPlayer().GetCurrentHandOutcome())
+
+	g.GetPlayer().SetCurrentHandIndex(0)
+	winningsFromHands += g.GetPlayer().GetCurrentHandWinnings()
+	equals(t, outcomes[0], g.GetPlayer().GetCurrentHandOutcome())
+
+	equals(t, winnings, winningsFromHands)
+	equals(t, g.GetPlayer().GetBalance(), 30-10-10+25)
 }

@@ -47,6 +47,9 @@ type Player interface {
 
 	SetCurrentHandWinnings(outcome.Winnings) error
 	SetCurrentHandOutcome(outcome.BlackjackOutcome) error
+
+	GetCurrentHandWinnings() outcome.Winnings
+	GetCurrentHandOutcome() outcome.BlackjackOutcome
 }
 
 func New(balance int) *player {
@@ -79,9 +82,17 @@ func (player *player) PlaceInsurance() error {
 	return fmt.Errorf(blackjackErrors.InvalidInsuranceHand)
 }
 
+func (player player) GetCurrentHandWinnings() outcome.Winnings {
+	return player.getCurrentHand().winnings
+}
+
+func (player player) GetCurrentHandOutcome() outcome.BlackjackOutcome {
+	return player.getCurrentHand().outcome
+}
+
 func (player player) GetHands() []hand.Hand {
 	var hands []hand.Hand
-	for _,hand := range player.hands {
+	for _, hand := range player.hands {
 		hands = append(hands, hand.cards)
 	}
 	return hands

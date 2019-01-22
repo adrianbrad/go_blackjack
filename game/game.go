@@ -69,11 +69,15 @@ func (game *game) Bet(bet int) error {
 	if err != nil {
 		return err
 	}
+	game.player.ResetHands()
+	game.dealer.ResetHands()
 
 	err = game.player.SetCurrentHandBet(bet)
+
 	if err != nil {
 		return err
 	}
+
 
 	return nil
 }
@@ -156,7 +160,7 @@ func (game *game) Hit() error { //game can end from a hit that busts
 
 	currentPlayerHand.AddCard(game.deck.DealCard())
 
-	if currentPlayerHand.Score() > 21 {
+	if currentPlayerHand.Score() >= 21 {
 		game.Stand()
 	}
 
@@ -168,11 +172,11 @@ func (game *game) Stand() error {
 	switch game.state {
 	case gameSessionState.StatePlayerTurn:
 		currentHandIndex := game.GetPlayer().GetCurrentHandIndex()
-		if currentHandIndex == game.GetPlayer().GetTotalHands()-1 {
+		if currentHandIndex == 0 {
 			game.state = gameSessionState.StateDealerTurn
 			game.FinishDealerHand()
 		} else {
-			game.GetPlayer().SetCurrentHandIndex(currentHandIndex + 1)
+			game.GetPlayer().SetCurrentHandIndex(currentHandIndex - 1)
 			game.Hit() // player splitted his hands, so he has only one card
 		}
 	case gameSessionState.StateDealerTurn:
@@ -189,7 +193,7 @@ func (game *game) DealStartingHands() error { //FIXME bullshit changing states
 	if err != nil {
 		return err
 	}
-	
+
 	game.state = gameSessionState.StatePlayerTurn
 	if game.GetPlayer().GetCurrentHandBet() <= 0 {
 		return fmt.Errorf("no bets placed")
@@ -253,8 +257,6 @@ func (game *game) EndHand() ([]outcome.BlackjackOutcome, outcome.Winnings, []out
 	}
 
 	game.player.SetBalance(game.player.GetBalance() + int(totalWinnings))
-	game.player.ResetHands()
-	game.dealer.ResetHands()
 	game.state = gameSessionState.StateBet
 
 	min := 52 * game.numDecks / 3 //reshuffle after we consumed 2/3

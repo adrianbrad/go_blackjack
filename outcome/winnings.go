@@ -8,7 +8,7 @@ func ComputeWinningsForPlayer(outcome BlackjackOutcome, playerBet int, blackjack
 	switch outcome.winner {
 	case blackjackWinner.Player:
 		if outcome.blackjack {
-			return Winnings(int(float64(playerBet) * blackjackPayout))
+			return Winnings(int(float64(playerBet)  + float64(playerBet) * blackjackPayout))
 		}
 		return Winnings(playerBet * 2)
 	case blackjackWinner.Dealer:
