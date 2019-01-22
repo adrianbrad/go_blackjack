@@ -24,7 +24,7 @@ type Game interface {
 	Split() error
 
 	FinishDealerHand() error
-	EndHand() ([]outcome.BlackjackOutcome, outcome.Winnings, []outcome.MoneyOperation, error)
+	EndHand() ([]outcome.BlackjackOutcome, outcome.Winnings, [][]outcome.MoneyOperation, error)
 
 	ShuffleNewDeck()
 
@@ -242,17 +242,17 @@ func (game *game) FinishDealerHand() error {
 	return nil
 }
 
-func (game *game) EndHand() ([]outcome.BlackjackOutcome, outcome.Winnings, []outcome.MoneyOperation, error) { //TODO resolve insurance
+func (game *game) EndHand() ([]outcome.BlackjackOutcome, outcome.Winnings, [][]outcome.MoneyOperation, error) { //TODO resolve insurance
 
 	err := game.checkValidState(gameSessionState.StateHandOver)
 	if err != nil {
-		return nil, outcome.Winnings(0), []outcome.MoneyOperation{}, err
+		return nil, outcome.Winnings(0), [][]outcome.MoneyOperation{}, err
 	}
 
 	totalHands := game.GetPlayer().GetTotalHands()
 	totalWinnings := outcome.Winnings(0)
 	var handOutcomes []outcome.BlackjackOutcome
-	var moneyOperations []outcome.MoneyOperation
+	var moneyOperations [][]outcome.MoneyOperation
 
 	for i := uint8(0); i < totalHands; i++ {
 		game.GetPlayer().SetCurrentHandIndex(i)
@@ -261,11 +261,15 @@ func (game *game) EndHand() ([]outcome.BlackjackOutcome, outcome.Winnings, []out
 		game.GetPlayer().SetCurrentHandOutcome(handOutcome)
 
 		handOutcomes = append(handOutcomes, handOutcome)
-		winnings := outcome.ComputeWinningsForPlayer(handOutcome, game.GetPlayer().GetCurrentHandBet(), game.GetBlackjackPayout())
-		game.GetPlayer().SetCurrentHandWinnings(winnings)
-		totalWinnings += winnings
 
-		moneyOperations = append(moneyOperations, outcome.ComputeMoneyOperations(winnings, game.GetPlayer().GetCurrentHandBet())...)
+		winningsAmount, betBackAmount := outcome.ComputeWinningsForPlayer(handOutcome, game.GetPlayer().GetCurrentHandBet(), game.GetBlackjackPayout())
+
+		game.GetPlayer().SetCurrentHandWinnings(winningsAmount + outcome.Winnings(betBackAmount))
+		totalWinnings += winningsAmount + outcome.Winnings(betBackAmount)
+
+		betAmount := game.GetPlayer().GetCurrentHandBet()
+		moneyOperationsForCurrentHand, _ := outcome.ComputeMoneyOperationsForHand(betAmount, betBackAmount, winningsAmount)
+		moneyOperations = append(moneyOperations, moneyOperationsForCurrentHand)
 	}
 
 	game.player.SetBalance(game.player.GetBalance() + int(totalWinnings))

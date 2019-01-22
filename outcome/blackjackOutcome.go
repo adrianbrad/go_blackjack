@@ -6,7 +6,7 @@ import (
 )
 
 type BlackjackOutcome struct {
-	winner         blackjackWinner.BlackjackWinner
+	Winner         blackjackWinner.BlackjackWinner
 	theOtherBusted bool
 	blackjack      bool
 }

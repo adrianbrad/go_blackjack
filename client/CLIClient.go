@@ -186,11 +186,13 @@ func (c *client) askForInput() {
 		case "y":
 			//c.game.
 		default:
+			c.displayGameInfo()
 			fmt.Printf("Current given input: %s, is invalid", input)
 		}
 	}
 
 	if err != nil {
+		c.displayGameInfo()
 		fmt.Println(err.Error())
 	}
 
