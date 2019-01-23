@@ -217,7 +217,7 @@ func (player *player) SplitHands() error {
 		return fmt.Errorf(blackjackErrors.SplitCardsNumberError)
 	}
 
-	if handToBeSplitted[0].Rank != handToBeSplitted[1].Rank {
+	if handToBeSplitted[0:1].Score() != handToBeSplitted[1:2].Score() {
 		return fmt.Errorf(blackjackErrors.SplitCardsValueError)
 	}
 

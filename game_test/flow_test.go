@@ -132,7 +132,10 @@ func TestEndState(t *testing.T) {
 
 	equals(t, playerWinnings, outcome.Winnings(25))
 
-	equals(t, moneyOperations, outcome.ComputeMoneyOperations(25, 10))
+	mo, _ := outcome.ComputeMoneyOperationsForHand(10, outcome.BetBack(10), outcome.Winnings(15))
+	moneyOperationsExpected := [][]outcome.MoneyOperation{mo}
+	
+	equals(t, moneyOperations, moneyOperationsExpected)
 }
 
 func TestEndStateSplitPlayerWinsBothHands(t *testing.T) {

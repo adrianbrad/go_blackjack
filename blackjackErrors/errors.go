@@ -13,9 +13,9 @@ const (
 	NoMoneyForSplitting       = "not enough money to split"
 	InvalidCardsForDoubleDown = "current hand has to have 2 cards"
 	BetAlreadyDoubled         = "bet already doubled"
-	InvalidInsuranceHand	  = "invalid hand for insurance"
-	InvalidBalance  		  = "invalid balance for operation"
+	InvalidInsuranceHand      = "invalid hand for insurance"
+	InvalidBalance            = "invalid balance for operation"
 	InvalidSetWinningsHand    = "invalid hand for settings winnings"
 	InvalidSetOutcomeHand     = "invalid hand for settings outcome"
-	HitPlayerTurnError 	  	  = "cannot hit if it is not player's turn"
+	HitPlayerTurnError        = "cannot hit if it is not player's turn"
 )
