@@ -1,10 +1,21 @@
-package game_test
+package hand_test
 
 import (
 	"blackjack/hand"
+	"fmt"
+	"path/filepath"
+	"reflect"
+	"runtime"
 	"testing"
 )
 
+func equals(tb testing.TB, act, exp interface{}) {
+	if !reflect.DeepEqual(exp, act) {
+		_, file, line, _ := runtime.Caller(1)
+		fmt.Printf("\033[31m%s:%d:\n\n\texp: %#v\n\n\tgot: %#v\033[39m\n\n", filepath.Base(file), line, exp, act)
+		tb.FailNow()
+	}
+}
 func TestHandScore(t *testing.T) {
 	//Two cards hands
 	equals(t, hand.Hand{{1, 2}, {1, 3}}.Score(), 5)
